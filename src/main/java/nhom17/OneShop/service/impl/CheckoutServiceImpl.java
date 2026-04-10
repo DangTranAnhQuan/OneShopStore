@@ -150,18 +150,18 @@ public class CheckoutServiceImpl implements CheckoutService {
                 shippingAddress.getStreetAddress(), shippingAddress.getWard(),
                 shippingAddress.getDistrict(), shippingAddress.getProvince());
 
-        Order order = new Order(
-                currentUser,
-                shippingAddress,
-                shippingAddress.getReceiverName(),
-                shippingAddress.getPhoneNumber(),
-                fullAddress,
-                shippingMethod,
-                paymentMethod,
-                shippingFee,
-                appliedVoucher
-        );
-        order.updateNote(note);
+        Order order = Order.builder()
+                .user(currentUser)
+                .address(shippingAddress)
+                .receiverName(shippingAddress.getReceiverName())
+                .receiverPhone(shippingAddress.getPhoneNumber())
+                .receiverAddress(fullAddress)
+                .shippingMethod(shippingMethod)
+                .paymentMethod(paymentMethod)
+                .shippingFee(shippingFee)
+                .voucher(appliedVoucher)
+                .note(note)
+                .build();
 
         for (CartItem cartItem : cartItems) {
             Product product = cartItem.getProduct();
