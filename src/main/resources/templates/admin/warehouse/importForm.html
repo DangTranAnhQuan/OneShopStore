@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{/layouts/admin}">
+<head>
+    <title th:text="${importRequest.importId == null ? 'Tạo phiếu nhập' : 'Sửa phiếu nhập'}"></title>
+</head>
+<body>
+<h4 class="fw-bold py-3 mb-4" layout:fragment="page_title">
+    <span class="text-muted fw-light">Phiếu nhập / </span>
+    <span th:text="${importRequest.importId == null ? 'Tạo mới' : 'Chỉnh sửa'}"></span>
+</h4>
+
+<main layout:fragment="content">
+    <form id="import-form" th:action="@{/admin/import/save}" th:object="${importRequest}" method="post">
+        <input type="hidden" name="filterKeyword" th:value="${keyword}">
+        <input type="hidden" name="filterSupplierId" th:value="${supplierId}">
+        <input type="hidden" name="page" th:value="${page}">
+        <input type="hidden" name="size" th:value="${size}">
+
+        <input type="hidden" th:field="*{importId}">
+
+        <div class="card">
+            <div class="card-header"><h5 class="mb-0">Thông tin chung</h5></div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Nhà cung cấp <span class="text-danger">*</span></label>
+                        <select th:field="*{supplierId}" class="form-select" required>
+                            <option value="">-- Chọn nhà cung cấp --</option>
+                            <option th:each="sup : ${suppliers}" th:value="${sup.supplierId}" th:text="${sup.supplierName}"></option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header"><h5 class="mb-0">Chi tiết sản phẩm nhập</h5></div>
+            <div class="card-body">
+                <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <span th:text="${errorMessage}"></span>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                        <tr>
+                            <th style="width: 40%;">Sản phẩm <span class="text-danger">*</span></th>
+                            <th style="width: 11%;">Số lượng <span class="text-danger">*</span></th>
+                            <th style="width: 15%;">Giá nhập <span class="text-danger">*</span></th>
+                            <th style="width: 15%;">Giá hiện tại</th>
+                            <th style="width: 15%;">Lịch sử giá nhập</th>
+                            <th></th>
+                        </tr>
+                        </thead>
+                        <tbody id="details-container">
+                        </tbody>
+                    </table>
+                </div>
+                <button type="button" id="add-detail-row" class="btn btn-outline-primary mt-3">
+                    <i class="bx bx-plus"></i> Thêm sản phẩm
+                </button>
+            </div>
+            <div class="card-footer text-end">
+                <a th:href="@{/admin/import(filterKeyword=${keyword}, filterSupplierId=${supplierId}, page=${page}, size=${size})}" class="btn btn-outline-secondary">Hủy</a>
+                <button type="submit" class="btn btn-primary" th:text="${importRequest.importId == null ? 'Lưu phiếu nhập' : 'Cập nhật phiếu nhập'}"></button>
+            </div>
+        </div>
+    </form>
+
+    <template id="detail-row-template">
+        <tr>
+            <td>
+                <select class="form-select product-select" required>
+                    <option value="">-- Chọn sản phẩm --</option>
+                    <option th:each="p : ${products}" th:value="${p.productId}" th:text="${p.name}" th:attr="data-price=${p.price}"></option>
+                </select>
+            </td>
+            <td><input type="number" class="form-control quantity-input" value="1" min="1" required></td>
+            <td><input type="number" step="1000" class="form-control price-input" value="0" min="0" required></td>
+            <td><input type="text" class="form-control current-price-display" readonly></td>
+            <td>
+                <a class="btn btn-sm btn-outline-info history-link"
+                   th:attr="data-base-href=@{/admin/import/history/}"
+                   href="#" target="_blank"
+                   style="display: none;">
+                    <i class='bx bx-history me-1'></i> Xem
+                </a>
+            </td>
+            <td><button type="button" class="btn btn-sm btn-outline-danger remove-detail-row"><i class="bx bx-trash"></i></button></td>
+        </tr>
+    </template>
+
+    <script th:inline="javascript">
+        /*<![CDATA[*/
+        const initialDetails = /*[[${importRequest.importDetails}]]*/ null;
+        /*]]>*/
+    </script>
+</main>
+</body>
+</html>

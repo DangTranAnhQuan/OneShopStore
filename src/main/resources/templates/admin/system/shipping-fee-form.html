@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{/layouts/admin}">
+<head>
+    <title th:text="${shippingFeeRequest.shippingFeeId == null ? 'Thêm gói phí' : 'Sửa gói phí'}"></title>
+</head>
+<body>
+<h4 class="fw-bold py-3 mb-4" layout:fragment="page_title">
+    <a th:href="@{/admin/shipping-carrier/{carrierId}/fees(carrierId=${shippingFeeRequest.carrierId})}">
+        <span class="text-muted fw-light">Quản lý phí / </span>
+    </a>
+    <span th:text="${shippingFeeRequest.shippingFeeId == null ? 'Thêm mới' : 'Chỉnh sửa'}"></span>
+</h4>
+
+<main layout:fragment="content">
+    <form id="shippingFeeForm" th:action="@{/admin/shipping-carrier/{carrierId}/fees/save(carrierId=${shippingFeeRequest.carrierId})}" th:object="${shippingFeeRequest}" method="post">
+
+        <input type="hidden" th:field="*{shippingFeeId}">
+        <input type="hidden" th:field="*{carrierId}">
+
+        <div class="card">
+            <div class="card-body">
+                <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <span th:text="${errorMessage}"></span>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                <div class="row">
+                    <div class="col-12 mb-3">
+                        <label for="packageName" class="form-label">Tên gói cước <span class="text-danger">*</span></label>
+                        <input type="text" id="packageName" th:field="*{packageName}" class="form-control" required>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label for="shippingMethod" class="form-label">Phương thức vận chuyển <span class="text-danger">*</span></label>
+                        <select id="shippingMethod" th:field="*{shippingMethod}" class="form-select" required>
+                            <option value="">-- Chọn phương thức --</option>
+                            <option th:each="method : ${shippingMethods}" th:value="${method}" th:text="${method.label}"></option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label for="feeAmount" class="form-label">Chi phí (VNĐ) <span class="text-danger">*</span></label>
+                        <input type="number" id="feeAmount" th:field="*{feeAmount}" class="form-control" required>
+                    </div>
+
+                    <div class="col-md-4 mb-3">
+                        <label for="minDeliveryDays" class="form-label">Giao sớm nhất <span class="text-danger">*</span></label>
+                        <input type="number" id="minDeliveryDays" th:field="*{minDeliveryDays}" class="form-control" required>
+                    </div>
+
+                    <div class="col-md-4 mb-3">
+                        <label for="maxDeliveryDays" class="form-label">Giao muộn nhất <span class="text-danger">*</span></label>
+                        <input type="number" id="maxDeliveryDays" th:field="*{maxDeliveryDays}" class="form-control" required>
+                    </div>
+
+                    <div class="col-md-4 mb-3">
+                        <label for="timeUnit" class="form-label">Đơn vị thời gian <span class="text-danger">*</span></label>
+                        <select id="timeUnit" th:field="*{timeUnit}" class="form-select" required>
+                            <option value="Ngày">Ngày</option>
+                            <option value="Giờ">Giờ</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="col-12 mb-3">
+                    <label for="provinceSelect" class="form-label">Các tỉnh thành áp dụng <span class="text-danger">*</span></label>
+
+                    <select th:field="*{appliedProvinces}" class="form-select" id="provinceSelect" multiple="multiple" required>
+                    </select>
+
+                    <div class="form-text">Giữ phím Ctrl (hoặc Command trên Mac) để chọn nhiều tỉnh.</div>
+                </div>
+            </div>
+            <div class="card-footer text-end gap-2 d-flex justify-content-end">
+                <a th:href="@{/admin/shipping-carrier/{carrierId}/fees(carrierId=${shippingFeeRequest.carrierId})}" class="btn btn-outline-secondary">Hủy</a>
+                <button type="submit" class="btn btn-primary">Lưu lại</button>
+            </div>
+        </div>
+    </form>
+
+    <div id="shippingFeeData"
+         th:attr="data-provinces-url=@{/web/assets/data/vn-divisions.json},
+                  data-selected-provinces=${shippingFeeRequest.appliedProvinces}">
+    </div>
+
+</main>
+
+</body>
+</html>

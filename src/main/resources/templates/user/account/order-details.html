@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org" layout:decorate="~{layouts/user}"
+      xmlns:layout="http://www.w3.org/1999/xhtml">
+<head>
+    <title>Chi tiết đơn hàng</title>
+    <style>
+        /* Tăng khoảng cách giữa các phần tử trong form */
+        .form-group.mb-3 {
+            margin-bottom: 25px !important;
+        }
+        /* Style cho label của input file Axil */
+        .axil-form-group.custom-file-upload label {
+            font-weight: 500;
+            color: #292930;
+            margin-bottom: 10px;
+            display: block;
+        }
+        /* Custom alert phong cách Axil */
+        .axil-alert {
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid transparent;
+            font-size: 16px;
+        }
+        .axil-alert-warning {
+            color: #856404;
+            background-color: #fff3cd;
+            border-color: #ffeeba;
+        }
+        .axil-alert-danger {
+            color: #721c24;
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+        }
+        .axil-alert-success {
+            color: #155724;
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+        }
+        .axil-alert i {
+            margin-right: 10px;
+            font-size: 1.2em;
+        }
+        .axil-alert h5 {
+            color: inherit;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+<main layout:fragment="content">
+    <div class="axil-dashboard-area axil-section-gap">
+        <div class="container">
+            <a th:href="@{/my-orders}" class="axil-btn btn-outline btn-sm mb-4"><i class="fal fa-long-arrow-left"></i> Quay lại danh sách</a>
+            <div class="axil-dashboard-warp">
+                <div class="axil-dashboard-account">
+                    <div class="d-flex justify-content-between align-items-center mb-5 flex-wrap gap-3">
+                        <h4 class="title mb-0" th:text="${'Chi tiết đơn hàng #' + order.orderId}"></h4>
+
+                        <form th:if="${order.orderStatus != null and order.orderStatus.name() == 'PENDING'}"
+                              th:action="@{/my-orders/cancel/{id}(id=${order.orderId})}"
+                              method="post"
+                              class="cancel-form">
+                            <button type="button" class="axil-btn btn-danger cancel-order-btn" data-bs-toggle="modal" data-bs-target="#cancelOrderModal">Hủy đơn hàng</button>
+                        </form>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <ul class="list-unstyled">
+                                <li><strong>Ngày đặt:</strong> <span th:text="${#temporals.format(order.orderedAt, 'dd-MM-yyyy HH:mm')}"></span></li>
+                                <li><strong>Trạng thái:</strong> <span class="badge" th:classappend="${order.orderStatus != null and order.orderStatus.name() == 'CANCELED' ? 'bg-danger' : (order.orderStatus != null and order.orderStatus.name() == 'DELIVERY_FAILED' ? 'bg-warning' : (order.orderStatus != null and order.orderStatus.name() == 'DELIVERED' ? 'bg-success' : 'bg-secondary'))}" th:text="${order.orderStatus != null ? order.orderStatus.label : 'Không xác định'}"></span></li>
+                                <li><strong>Tổng tiền:</strong> <span class="text-danger fw-bold fs-5" th:text="${#numbers.formatDecimal(order.totalAmount, 0, 'COMMA', 0, 'POINT')} + ' ₫'"></span></li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <ul class="list-unstyled">
+                                <li><strong>Người nhận:</strong> <span th:text="${order.receiverName}"></span></li>
+                                <li><strong>Số điện thoại:</strong> <span th:text="${order.receiverPhone}"></span></li>
+                                <li><strong>Địa chỉ:</strong> <span th:text="${order.receiverAddress}"></span></li>
+                                <li th:if="${order.voucher != null}"><strong>Mã giảm giá:</strong> <span th:text="${order.voucher.voucherCode}"></span></li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="row mt-2">
+                        <div class="col-md-6 ms-auto">
+                            <ul class="list-unstyled text-end mb-0">
+                                <li><strong>Tiền hàng:</strong> <span th:text="${#numbers.formatDecimal(order.subtotal, 0, 'COMMA', 0, 'POINT')} + ' ₫'"></span></li>
+                                <li><strong>Phí vận chuyển:</strong> <span th:text="${#numbers.formatDecimal(order.shippingFee, 0, 'COMMA', 0, 'POINT')} + ' ₫'"></span></li>
+                                <li><strong>Giảm giá:</strong> <span class="text-success" th:text="${'-' + #numbers.formatDecimal(order.discountAmount != null ? order.discountAmount : 0, 0, 'COMMA', 0, 'POINT') + ' ₫'}"></span></li>
+                                <li class="mt-2"><strong>Cần thanh toán:</strong> <span class="text-danger fw-bold" th:text="${#numbers.formatDecimal(order.totalAmount, 0, 'COMMA', 0, 'POINT')} + ' ₫'"></span></li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <hr class="my-5">
+                    <h5 class="mt-4 mb-4">Các sản phẩm đã mua</h5>
+                    <div class="table-responsive">
+                        <table class="table axil-table table-striped table-hover">
+                            <thead>
+                            <tr>
+                                <th>Sản phẩm</th>
+                                <th>Đơn giá</th>
+                                <th>Số lượng</th>
+                                <th class="text-end">Thành tiền</th>
+                                <th th:if="${order.orderStatus != null and order.orderStatus.name() == 'DELIVERED'}" class="text-center">Đánh giá</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr th:each="detail : ${order.orderDetails}">
+                                <td th:text="${detail.productName != null ? detail.productName : (detail.product != null ? detail.product.name : 'Sản phẩm không còn tồn tại')}"></td>
+                                <td th:text="${#numbers.formatDecimal(detail.unitPrice, 0, 'COMMA', 0, 'POINT')} + ' ₫'"></td>
+                                <td th:text="${detail.quantity}"></td>
+                                <td class="text-end fw-500" th:text="${#numbers.formatDecimal(detail.lineTotal, 0, 'COMMA', 0, 'POINT')} + ' ₫'"></td>
+                                <td th:if="${order.orderStatus != null and order.orderStatus.name() == 'DELIVERED'}" class="text-center">
+                                    <a th:if="${detail.product != null and @orderServiceImpl.canUserReviewProduct(viewerUserId, detail.product.productId)}"
+                                       th:href="@{/product/{id}(id=${detail.product.productId}, _fragment='reviews')}"
+                                       class="axil-btn btn-sm btn-outline-primary">Viết đánh giá</a>
+                                    <span th:unless="${detail.product != null and @orderServiceImpl.canUserReviewProduct(viewerUserId, detail.product.productId)}"
+                                          class="text-muted fst-italic">Đã đánh giá</span>
+                                </td>
+                            </tr>
+                            <tr th:if="${order.orderDetails == null or order.orderDetails.isEmpty()}">
+                                <td colspan="5" class="text-center text-muted">Không có sản phẩm trong đơn hàng.</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="mt-5 text-end" th:if="${order.orderStatus != null and order.orderStatus.name() == 'DELIVERED'}">
+
+                        <th:block th:if="${returnReq == null}">
+                            <button type="button" class="axil-btn btn-bg-secondary w-md-50 w-100" data-bs-toggle="modal" data-bs-target="#returnOrderModal">
+                                <i class="fas fa-undo mr-2"></i> Yêu cầu hoàn trả
+                            </button>
+                        </th:block>
+
+                        <th:block th:if="${returnReq != null and returnReq.requestStatus != null and returnReq.requestStatus.name() == 'PENDING'}">
+                            <div class="axil-alert axil-alert-warning text-start" role="alert">
+                                <i class="fas fa-hourglass-half"></i> Yêu cầu hoàn trả của bạn đang được ban quản trị xem xét.
+                            </div>
+                        </th:block>
+
+                        <th:block th:if="${returnReq != null and returnReq.requestStatus != null and returnReq.requestStatus.name() == 'REJECTED'}">
+                            <div class="axil-alert axil-alert-danger text-start" role="alert">
+                                <h5><i class="fas fa-times-circle"></i> Yêu cầu hoàn trả đã bị từ chối!</h5>
+                                <p class="mb-0"><strong>Lý do từ Admin:</strong> <span th:text="${returnReq.adminNotes ?: 'Không có ghi chú'}"></span></p>
+                            </div>
+                        </th:block>
+
+                        <th:block th:if="${returnReq != null and returnReq.requestStatus != null and returnReq.requestStatus.name() == 'APPROVED'}">
+                            <div class="axil-alert axil-alert-success text-start" role="alert">
+                                <h5><i class="fas fa-check-circle"></i> Yêu cầu hoàn trả đã được chấp thuận!</h5>
+                                <p class="mb-0"><strong>Ghi chú từ Admin:</strong> <span th:text="${returnReq.adminNotes ?: 'Vui lòng kiểm tra ví/tài khoản để nhận lại tiền.'}"></span></p>
+                            </div>
+                        </th:block>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="cancelOrderModal" tabindex="-1" aria-labelledby="cancelOrderModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="cancelOrderModalLabel">Xác nhận Hủy Đơn Hàng</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    Bạn có chắc chắn muốn hủy đơn hàng này không? Hành động này không thể hoàn tác.
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="axil-btn btn-sm btn-outline btn-secondary" data-bs-dismiss="modal">Hủy bỏ</button>
+                    <button type="button" class="axil-btn btn-sm btn-danger" id="confirmCancelBtn">Xác nhận Hủy</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="returnOrderModal" tabindex="-1" aria-hidden="true" th:if="${order.orderStatus != null and order.orderStatus.name() == 'DELIVERED' and returnReq == null}">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content shadow">
+                <div class="modal-header border-bottom-0 pb-0">
+                    <h5 class="modal-title fs-4 fw-700">Yêu cầu hoàn trả đơn hàng</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form th:action="@{/my-orders/request-return/{id}(id=${order.orderId})}" method="post" enctype="multipart/form-data" class="axil-checkout-form">
+                    <div class="modal-body pt-4">
+                        <div class="axil-form-group mb-4">
+                            <label for="reason">Lý do hoàn trả <span class="text-danger">*</span></label>
+                            <textarea id="reason" name="reason" rows="4" required placeholder="Vui lòng nhập chi tiết lý do bạn muốn trả hàng..." class="form-control axil-input-style p-3"></textarea>
+                        </div>
+                        <div class="axil-form-group custom-file-upload">
+                            <label for="evidenceFile">Hình ảnh bằng chứng <span class="text-danger">*</span></label>
+                            <input type="file" id="evidenceFile" name="evidenceFile" accept="image/*" required class="form-control axil-input-style pt-2">
+                        </div>
+                        <div class="bg-light p-3 rounded-10 mt-4 border">
+                            <p class="text-muted small mb-0 fs-13"><i class="fal fa-info-circle mr-2"></i> Lưu ý: Yêu cầu của bạn sẽ được ban quản trị xem xét kỹ lưỡng. Vui lòng cung cấp hình ảnh rõ nét và trung thực về tình trạng sản phẩm để quá trình xử lý diễn ra nhanh chóng.</p>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-top-0 pt-0 d-flex gap-3 mt-4">
+                        <button type="button" class="axil-btn btn-sm btn-outline btn-secondary" data-bs-dismiss="modal">Hủy bỏ</button>
+                        <button type="submit" class="axil-btn btn-sm btn-bg-primary">Gửi yêu cầu</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</main>
+
+<th:block layout:fragment="script">
+    <script th:inline="javascript">
+        document.addEventListener('DOMContentLoaded', function () {
+            let formToSubmit = null;
+            const confirmCancelBtn = document.getElementById('confirmCancelBtn');
+            const cancelBtn = document.querySelector('.cancel-order-btn');
+
+            if (cancelBtn) {
+                cancelBtn.addEventListener('click', function (event) {
+                    formToSubmit = event.target.closest('form');
+                });
+            }
+            if (confirmCancelBtn) {
+                confirmCancelBtn.addEventListener('click', function () {
+                    if (formToSubmit) {
+                        formToSubmit.submit();
+                    }
+                });
+            }
+        });
+    </script>
+</th:block>
+
+</body>
+</html>

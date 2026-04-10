@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="vi"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layouts/user}">
+
+<head>
+    <meta charset="utf-8"/>
+    <title>Trang chủ</title>
+    <style>
+        .slide-link, .card-link { position: absolute; inset: 0; display: block; text-indent: -9999px; background: transparent; }
+        .axil-product.product-style-one { position: relative; }
+        .axil-product.product-style-one .card-link { z-index: 2; }
+        .main-slider-content .title a { color: inherit; text-decoration: none !important; }
+        .main-slider-content .title a:hover, .main-slider-content .title a:focus, .main-slider-content .title a:active { text-decoration: none !important; }
+        .axil-product a { text-decoration: none; }
+        .axil-product a:hover, .axil-product a:focus, .axil-product a:active { text-decoration: none; }
+    </style>
+
+    <style>
+        .axil-product.product-style-one .product-content {
+            padding: 20px 20px 25px;
+            background-color: #fff;
+            position: relative;
+            z-index: 1;
+            border: 1px solid #f3f3f3;
+            border-top: none;
+            border-radius: 0 0 6px 6px;
+        }
+        .axil-product.product-style-one .thumbnail {
+            position: relative;
+            z-index: 2;
+        }
+
+        .product-sold-info {
+            display: block;
+            font-size: 13px;
+            color: #777;
+            margin-bottom: 10px;
+            min-height: 45px; /* Đảm bảo chiều cao tối thiểu */
+        }
+
+        .product-sold-info .sold-text-line {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 4px;
+        }
+        .product-sold-info .sold-label {
+            font-size: 13px;
+            color: #333;
+        }
+        .product-sold-info .sold-quantity {
+            font-size: 13px;
+            font-weight: 600;
+            color: #333;
+        }
+        .sold-progress-bar {
+            width: 100%;
+            height: 8px;
+            background-color: #fce7e7;
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+        }
+        .sold-progress {
+            height: 100%;
+            background-color: #f70404;
+            border-radius: 4px;
+            min-width: 5%;
+        }
+
+        .product-content .title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .product-content .title a {
+            color: #333;
+            text-decoration: none;
+        }
+        .product-content .title a:hover {
+            color: var(--color-primary);
+        }
+        .product-price-variant {
+            margin-bottom: 8px;
+        }
+        .product-price-variant .current-price {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--color-primary);
+        }
+        .product-price-variant .old-price {
+            font-size: 14px;
+            color: #777;
+            text-decoration: line-through;
+            margin-left: 8px;
+        }
+        .product-rating-info {
+            display: flex;
+            align-items: center;
+            font-size: 14px;
+            color: #777;
+            height: 21px;
+            margin-bottom: 10px;
+        }
+        .product-rating-info .star-rating {
+            color: #ffc107;
+        }
+        .product-rating-info .star-rating span {
+            color: #333;
+            font-weight: 600;
+            margin-left: 4px;
+        }
+        .product-rating-info .review-count {
+            margin-left: 8px;
+        }
+        .product-action-bottom {
+            margin-top: 10px;
+        }
+        .product-action-bottom .out-of-stock-label {
+            display: inline-flex;
+            align-items: center;
+            padding: 5px 10px;
+            background-color: #f0f0f0;
+            border-radius: 5px;
+            color: #d10000;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .product-action-bottom .out-of-stock-label i {
+            margin-right: 8px;
+            font-size: 16px;
+        }
+    </style>
+</head>
+
+<body>
+<main layout:fragment="content">
+
+    <div class="axil-main-slider-area main-slider-style-1">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-lg-5 col-sm-6">
+                    <div class="main-slider-content">
+                        <div class="slider-content-activation-one">
+                            <div th:each="product : ${sliderProducts}" class="single-slide slick-slide" data-sal="slide-up" data-sal-delay="400" data-sal-duration="800">
+                                <span class="subtitle"><i class="fas fa-fire"></i> Ưu đãi hấp dẫn trong tuần</span>
+                                <h1 class="title"><a th:href="@{/product/{id}(id=${product.productId})}" th:text="${product.name}"></a></h1>
+                                <div class="slide-action">
+                                    <div class="shop-btn"><a th:href="@{/product/{id}(id=${product.productId})}" class="axil-btn btn-bg-white"><i class="fal fa-shopping-cart"></i> Xem chi tiết</a></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-7 col-sm-6">
+                    <div class="main-slider-large-thumb">
+                        <div class="slider-thumb-activation-one axil-slick-dots">
+                            <div th:each="product : ${sliderProducts}" class="single-slide slick-slide" data-sal="slide-up" data-sal-delay="600" data-sal-duration="1500" style="position:relative;">
+                                <img th:src="@{/uploads/{file}(file=${product.imageUrl})}" alt="Product">
+                                <div class="product-price">
+                                    <span class="text">Chỉ từ</span>
+                                    <span class="price-amount" th:text="${#numbers.formatDecimal(product.price, 0, 'COMMA', 0, 'POINT')} + ' ₫'"></span>
+                                </div>
+                                <a class="slide-link" th:href="@{/product/{id}(id=${product.productId})}" th:aria-label="${'Xem chi tiết ' + product.name}"></a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <ul class="shape-group">
+            <li class="shape-1"><img th:src="@{/web/assets/images/others/shape-1.png}" alt="Shape"></li>
+            <li class="shape-2"><img th:src="@{/web/assets/images/others/shape-2.png}" alt="Shape"></li>
+        </ul>
+    </div>
+    <div class="axil-categorie-area bg-color-white axil-section-gapcommon">
+        <div class="container">
+            <div class="section-title-wrapper">
+                <span class="title-highlighter highlighter-secondary"><i class="far fa-tags"></i> Danh mục</span>
+                <h2 class="title">Duyệt theo danh mục</h2>
+            </div>
+            <div class="categrie-product-activation slick-layout-wrapper--15 axil-slick-arrow arrow-top-slide">
+                <div th:each="category : ${categories}" class="slick-single-layout">
+                    <div class="categrie-product" data-sal="zoom-out" data-sal-delay="200" data-sal-duration="500">
+                        <a th:href="@{/shop(categoryId=${category.categoryId})}">
+                            <img class="img-fluid" th:src="@{/uploads/{file}(file=${category.imageUrl})}" alt="product categorie">
+                            <h6 class="cat-title" th:text="${category.categoryName}"></h6>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="axil-product-area bg-color-white axil-section-gap">
+        <div class="container">
+            <div class="section-title-wrapper">
+                <span class="title-highlighter highlighter-primary"><i class="far fa-shopping-basket"></i> Sản phẩm của chúng tôi</span>
+                <h2 class="title">Khám phá sản phẩm</h2>
+            </div>
+            <div class="explore-product-activation slick-layout-wrapper slick-layout-wrapper--15 axil-slick-arrow arrow-top-slide">
+                <div th:each="productGroup : ${groupedProducts}" class="slick-single-layout">
+                    <div class="row row--15">
+                        <div th:each="product : ${productGroup}" class="col-xl-3 col-lg-4 col-sm-6 col-12 mb--30">
+                            <div class="axil-product product-style-one">
+                                <div class="thumbnail">
+                                    <a th:href="@{/product/{id}(id=${product.productId})}"><img data-sal="zoom-out" class="main-img" th:src="@{/uploads/{file}(file=${product.imageUrl})}" alt="Product Images"></a>
+                                    <div class="product-hover-action">
+                                        <ul class="cart-action">
+                                            <li class="quickview"><a href="#" class="quick-view-btn" data-bs-toggle="modal" data-bs-target="#quick-view-modal" th:data-product-id="${product.productId}"><i class="far fa-eye"></i></a></li>
+                                            <li class="select-option"><th:block th:if="${stockByProductId[product.productId] != null and stockByProductId[product.productId] > 0}"><a href="#" class="add-to-cart-btn-ajax" th:data-product-id="${product.productId}">Thêm vào giỏ</a></th:block><th:block th:unless="${stockByProductId[product.productId] != null and stockByProductId[product.productId] > 0}"><a href="javascript:void(0)" style="cursor: not-allowed; background-color: #6c757d !important; border-color: #6c757d !important;">Hết hàng</a></th:block></li>
+                                            <li class="wishlist"><a href="#" class="toggle-wishlist-btn" th:data-product-id="${product.productId}"><i class="far fa-heart"></i></a></li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div class="product-content">
+                                    <div class="inner">
+                                        <div class="product-sold-info">
+                                            <div class="sold-text-line">
+                                                <span class="sold-label">Đã bán</span>
+                                                <span class="sold-quantity" th:text="${#numbers.formatDecimal(product.totalSold ?: 0, 0, 'COMMA', 0, 'POINT')}"></span>
+                                            </div>
+                                            <div class="sold-progress-bar">
+                                                <div class="sold-progress"
+                                                     th:if="${product.totalSold != null && product.totalSold > 0}"
+                                                     th:style="'width: ' + (${product.totalSold % 1000} / 10.0) + '%;'">
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <h5 class="title"><a th:href="@{/product/{id}(id=${product.productId})}" th:text="${product.name}">Product Name</a></h5>
+                                        <div class="product-price-variant">
+                                            <span class="price current-price" th:text="${#numbers.formatDecimal(product.price, 0, 'COMMA', 0, 'POINT')} + ' ₫'"></span>
+                                            <span class="price old-price" th:if="${product.originalPrice != null && product.originalPrice > product.price}"
+                                                  th:text="${#numbers.formatDecimal(product.originalPrice, 0, 'COMMA', 0, 'POINT')} + ' ₫'"></span>
+                                        </div>
+                                        <div class="product-rating-info" th:if="${product.reviewCount != null && product.reviewCount > 0}">
+                                            <div class="star-rating">
+                                                <i class="fas fa-star"></i>
+                                                <span th:text="${#numbers.formatDecimal(product.averageRating, 1, 1)}"></span>
+                                            </div>
+                                            <span class="review-count">(&nbsp;<span th:text="${product.reviewCount}"></span> đánh giá&nbsp;)</span>
+                                        </div>
+                                        <div class="product-rating-info" th:unless="${product.reviewCount != null && product.reviewCount > 0}">
+                                            &nbsp; </div>
+                                        <div class="product-action-bottom" th:if="${stockByProductId[product.productId] == null or stockByProductId[product.productId] <= 0}">
+                                            <span class="out-of-stock-label"><i class="fas fa-shopping-bag"></i> HẾT HÀNG</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="axil-product-area bg-color-white axil-section-gap">
+        <div class="container">
+            <div class="section-title-wrapper">
+                <span class="title-highlighter highlighter-primary"><i class="far fa-lightbulb-on"></i> Hàng Mới Về</span>
+                <h2 class="title">Sản Phẩm Mới Nhất</h2>
+            </div>
+            <div class="explore-product-activation slick-layout-wrapper slick-layout-wrapper--15 axil-slick-arrow arrow-top-slide">
+                <div th:each="productGroup : ${newestProductsGrouped}" class="slick-single-layout">
+                    <div class="row row--15">
+                        <div th:each="product : ${productGroup}" class="col-xl-3 col-lg-4 col-sm-6 col-12 mb--30">
+                            <div class="axil-product product-style-one">
+                                <div class="thumbnail">
+                                    <a th:href="@{/product/{id}(id=${product.productId})}"><img th:src="@{/uploads/{file}(file=${product.imageUrl})}" alt="Product Images"></a>
+                                    <div class="product-hover-action">
+                                        <ul class="cart-action">
+                                            <li class="quickview"><a href="#" class="quick-view-btn" data-bs-toggle="modal" data-bs-target="#quick-view-modal" th:data-product-id="${product.productId}"><i class="far fa-eye"></i></a></li>
+                                            <li class="select-option"><th:block th:if="${stockByProductId[product.productId] != null and stockByProductId[product.productId] > 0}"><a href="#" class="add-to-cart-btn-ajax" th:data-product-id="${product.productId}">Thêm vào giỏ</a></th:block><th:block th:unless="${stockByProductId[product.productId] != null and stockByProductId[product.productId] > 0}"><a href="javascript:void(0)" style="cursor: not-allowed; background-color: #6c757d !important; border-color: #6c757d !important;">Hết hàng</a></th:block></li>
+                                            <li class="wishlist"><a href="#" class="toggle-wishlist-btn" th:data-product-id="${product.productId}"><i class="far fa-heart"></i></a></li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div class="product-content">
+                                    <div class="inner">
+                                        <div class="product-sold-info">
+                                            <div class="sold-text-line">
+                                                <span class="sold-label">Đã bán</span>
+                                                <span class="sold-quantity" th:text="${#numbers.formatDecimal(product.totalSold ?: 0, 0, 'COMMA', 0, 'POINT')}"></span>
+                                            </div>
+                                            <div class="sold-progress-bar">
+                                                <div class="sold-progress"
+                                                     th:if="${product.totalSold != null && product.totalSold > 0}"
+                                                     th:style="'width: ' + (${product.totalSold % 1000} / 10.0) + '%;'">
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <h5 class="title"><a th:href="@{/product/{id}(id=${product.productId})}" th:text="${product.name}">Product Name</a></h5>
+                                        <div class="product-price-variant">
+                                            <span class="price current-price" th:text="${#numbers.formatDecimal(product.price, 0, 'COMMA', 0, 'POINT')} + ' ₫'"></span>
+                                            <span class="price old-price" th:if="${product.originalPrice != null && product.originalPrice > product.price}"
+                                                  th:text="${#numbers.formatDecimal(product.originalPrice, 0, 'COMMA', 0, 'POINT')} + ' ₫'"></span>
+                                        </div>
+                                        <div class="product-rating-info" th:if="${product.reviewCount != null && product.reviewCount > 0}">
+                                            <div class="star-rating">
+                                                <i class="fas fa-star"></i>
+                                                <span th:text="${#numbers.formatDecimal(product.averageRating, 1, 1)}"></span>
+                                            </div>
+                                            <span class="review-count">(&nbsp;<span th:text="${product.reviewCount}"></span> đánh giá&nbsp;)</span>
+                                        </div>
+                                        <div class="product-rating-info" th:unless="${product.reviewCount != null && product.reviewCount > 0}">
+                                            &nbsp; </div>
+                                        <div class="product-action-bottom" th:if="${stockByProductId[product.productId] == null or stockByProductId[product.productId] <= 0}">
+                                            <span class="out-of-stock-label"><i class="fas fa-shopping-bag"></i> HẾT HÀNG</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="axil-product-area bg-color-white axil-section-gap">
+        <div class="container">
+            <div class="section-title-wrapper">
+                <span class="title-highlighter highlighter-secondary"><i class="fas fa-fire"></i> Hot Nhất Tuần</span>
+                <h2 class="title">Sản Phẩm Bán Chạy</h2>
+            </div>
+            <div class="explore-product-activation slick-layout-wrapper slick-layout-wrapper--15 axil-slick-arrow arrow-top-slide">
+                <div th:each="productGroup : ${topSellingProductsGrouped}" class="slick-single-layout">
+                    <div class="row row--15">
+                        <div th:each="product : ${productGroup}" class="col-xl-3 col-lg-4 col-sm-6 col-12 mb--30">
+                            <div class="axil-product product-style-one">
+                                <div class="thumbnail">
+                                    <a th:href="@{/product/{id}(id=${product.productId})}"><img th:src="@{/uploads/{file}(file=${product.imageUrl})}" alt="Product Images"></a>
+                                    <div class="product-hover-action">
+                                        <ul class="cart-action">
+                                            <li class="quickview"><a href="#" class="quick-view-btn" data-bs-toggle="modal" data-bs-target="#quick-view-modal" th:data-product-id="${product.productId}"><i class="far fa-eye"></i></a></li>
+                                            <li class="select-option"><th:block th:if="${stockByProductId[product.productId] != null and stockByProductId[product.productId] > 0}"><a href="#" class="add-to-cart-btn-ajax" th:data-product-id="${product.productId}">Thêm vào giỏ</a></th:block><th:block th:unless="${stockByProductId[product.productId] != null and stockByProductId[product.productId] > 0}"><a href="javascript:void(0)" style="cursor: not-allowed; background-color: #6c757d !important; border-color: #6c757d !important;">Hết hàng</a></th:block></li>
+                                            <li class="wishlist"><a href="#" class="toggle-wishlist-btn" th:data-product-id="${product.productId}"><i class="far fa-heart"></i></a></li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div class="product-content">
+                                    <div class="inner">
+                                        <div class="product-sold-info">
+                                            <div class="sold-text-line">
+                                                <span class="sold-label">Đã bán</span>
+                                                <span class="sold-quantity" th:text="${#numbers.formatDecimal(product.totalSold ?: 0, 0, 'COMMA', 0, 'POINT')}"></span>
+                                            </div>
+                                            <div class="sold-progress-bar">
+                                                <div class="sold-progress"
+                                                     th:if="${product.totalSold != null && product.totalSold > 0}"
+                                                     th:style="'width: ' + (${product.totalSold % 1000} / 10.0) + '%;'">
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <h5 class="title"><a th:href="@{/product/{id}(id=${product.productId})}" th:text="${product.name}">Product Name</a></h5>
+                                        <div class="product-price-variant">
+                                            <span class="price current-price" th:text="${#numbers.formatDecimal(product.price, 0, 'COMMA', 0, 'POINT')} + ' ₫'"></span>
+                                            <span class="price old-price" th:if="${product.originalPrice != null && product.originalPrice > product.price}"
+                                                  th:text="${#numbers.formatDecimal(product.originalPrice, 0, 'COMMA', 0, 'POINT')} + ' ₫'"></span>
+                                        </div>
+                                        <div class="product-rating-info" th:if="${product.reviewCount != null && product.reviewCount > 0}">
+                                            <div class="star-rating">
+                                                <i class="fas fa-star"></i>
+                                                <span th:text="${#numbers.formatDecimal(product.averageRating, 1, 1)}"></span>
+                                            </div>
+                                            <span class="review-count">(&nbsp;<span th:text="${product.reviewCount}"></span> đánh giá&nbsp;)</span>
+                                        </div>
+                                        <div class="product-rating-info" th:unless="${product.reviewCount != null && product.reviewCount > 0}">
+                                            &nbsp; </div>
+                                        <div class="product-action-bottom" th:if="${stockByProductId[product.productId] == null or stockByProductId[product.productId] <= 0}">
+                                            <span class="out-of-stock-label"><i class="fas fa-shopping-bag"></i> HẾT HÀNG</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="axil-product-area bg-color-white axil-section-gap">
+        <div class="container">
+            <div class="section-title-wrapper">
+                <span class="title-highlighter highlighter-primary"><i class="fas fa-tags"></i> Deal Sốc</span>
+                <h2 class="title">Giảm Giá Nhiều Nhất</h2>
+            </div>
+            <div class="explore-product-activation slick-layout-wrapper slick-layout-wrapper--15 axil-slick-arrow arrow-top-slide">
+                <div th:each="productGroup : ${mostDiscountedProductsGrouped}" class="slick-single-layout">
+                    <div class="row row--15">
+                        <div th:each="product : ${productGroup}" class="col-xl-3 col-lg-4 col-sm-6 col-12 mb--30">
+                            <div class="axil-product product-style-one">
+                                <div class="thumbnail">
+                                    <a th:href="@{/product/{id}(id=${product.productId})}"><img th:src="@{/uploads/{file}(file=${product.imageUrl})}" alt="Product Images"></a>
+                                    <div class="product-badget" th:if="${product.originalPrice != null && product.originalPrice > product.price and product.originalPrice > 0}">
+                                        <span class="percentage" th:text="${'-' + #numbers.formatDecimal(((product.originalPrice - product.price) / product.originalPrice) * 100, 0, 0) + '%'}"></span>
+                                    </div>
+                                    <div class="product-hover-action">
+                                        <ul class="cart-action">
+                                            <li class="quickview"><a href="#" class="quick-view-btn" data-bs-toggle="modal" data-bs-target="#quick-view-modal" th:data-product-id="${product.productId}"><i class="far fa-eye"></i></a></li>
+                                            <li class="select-option"><th:block th:if="${stockByProductId[product.productId] != null and stockByProductId[product.productId] > 0}"><a href="#" class="add-to-cart-btn-ajax" th:data-product-id="${product.productId}">Thêm vào giỏ</a></th:block><th:block th:unless="${stockByProductId[product.productId] != null and stockByProductId[product.productId] > 0}"><a href="javascript:void(0)" style="cursor: not-allowed; background-color: #6c757d !important; border-color: #6c757d !important;">Hết hàng</a></th:block></li>
+                                            <li class="wishlist"><a href="#" class="toggle-wishlist-btn" th:data-product-id="${product.productId}"><i class="far fa-heart"></i></a></li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div class="product-content">
+                                    <div class="inner">
+                                        <div class="product-sold-info">
+                                            <div class="sold-text-line">
+                                                <span class="sold-label">Đã bán</span>
+                                                <span class="sold-quantity" th:text="${#numbers.formatDecimal(product.totalSold ?: 0, 0, 'COMMA', 0, 'POINT')}"></span>
+                                            </div>
+                                            <div class="sold-progress-bar">
+                                                <div class="sold-progress"
+                                                     th:if="${product.totalSold != null && product.totalSold > 0}"
+                                                     th:style="'width: ' + (${product.totalSold % 1000} / 10.0) + '%;'">
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <h5 class="title"><a th:href="@{/product/{id}(id=${product.productId})}" th:text="${product.name}">Product Name</a></h5>
+                                        <div class="product-price-variant">
+                                            <span class="price current-price" th:text="${#numbers.formatDecimal(product.price, 0, 'COMMA', 0, 'POINT')} + ' ₫'"></span>
+                                            <span class="price old-price" th:if="${product.originalPrice != null && product.originalPrice > product.price}"
+                                                  th:text="${#numbers.formatDecimal(product.originalPrice, 0, 'COMMA', 0, 'POINT')} + ' ₫'"></span>
+                                        </div>
+                                        <div class="product-rating-info" th:if="${product.reviewCount != null && product.reviewCount > 0}">
+                                            <div class="star-rating">
+                                                <i class="fas fa-star"></i>
+                                                <span th:text="${#numbers.formatDecimal(product.averageRating, 1, 1)}"></span>
+                                            </div>
+                                            <span class="review-count">(&nbsp;<span th:text="${product.reviewCount}"></span> đánh giá&nbsp;)</span>
+                                        </div>
+                                        <div class="product-rating-info" th:unless="${product.reviewCount != null && product.reviewCount > 0}">
+                                            &nbsp; </div>
+                                        <div class="product-action-bottom" th:if="${stockByProductId[product.productId] == null or stockByProductId[product.productId] <= 0}">
+                                            <span class="out-of-stock-label"><i class="fas fa-shopping-bag"></i> HẾT HÀNG</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</main>
+</body>
+</html>

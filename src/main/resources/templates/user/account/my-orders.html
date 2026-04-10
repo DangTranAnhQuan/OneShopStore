@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="vi"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layouts/user}">
+<head>
+    <title>Lịch sử đơn hàng</title>
+    <style>
+        .axil-dashboard-author .thumbnail img {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+        /* ✅ BỔ SUNG: CSS cho phân trang */
+        .pagination {
+            justify-content: center;
+            padding: 0;
+            margin-top: 30px;
+            margin-bottom: 0;
+        }
+        .pagination .page-item {
+            margin: 0 4px;
+        }
+        .pagination .page-item .page-link {
+            display: inline-block;
+            min-width: 40px;
+            height: 40px;
+            line-height: 38px;
+            text-align: center;
+            border-radius: 6px;
+            border: 1px solid #f1f1f1;
+            color: var(--color-body);
+            font-weight: 500;
+            font-size: 15px;
+            padding: 0 10px;
+        }
+        .pagination .page-item.active .page-link {
+            background-color: var(--color-primary);
+            color: #fff;
+            border-color: var(--color-primary);
+        }
+        .pagination .page-item.disabled .page-link {
+            color: #ccc;
+            background-color: #f8f8f8;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+<div layout:fragment="content">
+    <div class="axil-dashboard-area axil-section-gap">
+        <div class="container">
+            <div class="axil-dashboard-warp">
+
+                <div class="axil-dashboard-author">
+                    <div class="media">
+                        <div class="thumbnail">
+                            <img th:src="${user.avatarUrl != null and !#strings.isEmpty(user.avatarUrl) ? '/uploads/' + user.avatarUrl : '/web/assets/images/product/author1.png'}" alt="Avatar">
+                        </div>
+                        <div class="media-body">
+                            <h5 class="title mb-0" th:text="${'Xin chào, ' + user.fullName}"></h5>
+                            <span class="joining-date">Thành viên OneShop</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-xl-3 col-md-4">
+                        <aside class="axil-dashboard-aside">
+                            <nav class="axil-dashboard-nav">
+                                <div class="nav nav-tabs" role="tablist">
+                                    <a class="nav-item nav-link" th:href="@{/my-account}">
+                                        <i class="fas fa-user"></i>Chi tiết tài khoản
+                                    </a>
+                                    <a class="nav-item nav-link" th:href="@{/my-membership}">
+                                        <i class="fas fa-medal"></i>Hạng thành viên
+                                    </a>
+                                    <a class="nav-item nav-link active" th:href="@{/my-orders}">
+                                        <i class="fas fa-shopping-basket"></i>Đơn hàng
+                                    </a>
+                                    <a class="nav-item nav-link" th:href="@{/my-account(tab='addresses')}">
+                                        <i class="fas fa-home"></i>Địa chỉ
+                                    </a>
+                                    <form th:action="@{/logout}" method="post" class="nav-item" style="padding: 0; border: none; background: none;">
+                                        <button type="submit" class="nav-link" style="all: unset; cursor:pointer; display:block; width:100%; text-align:left; padding:15px 25px; color: var(--color-body); border: none; background: none;">
+                                            Đăng xuất
+                                        </button>
+                                    </form>
+                                </div>
+                            </nav>
+                        </aside>
+                    </div>
+
+                    <div class="col-xl-9 col-md-8">
+                        <div class="axil-dashboard-account">
+                            <h4 class="mb-4">Lịch sử đơn hàng</h4>
+                            <div th:if="${success}" class="alert alert-success alert-dismissible fade show" role="alert" data-auto-hide="true" th:text="${success}">
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                            <div th:if="${error}" class="alert alert-danger alert-dismissible fade show" role="alert" data-auto-hide="true" th:text="${error}">
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+
+                            <div th:if="${orderPage.empty}" class="text-center text-muted py-5">
+                                Bạn chưa có đơn hàng nào.
+                            </div>
+
+                            <div th:if="${!orderPage.empty}">
+                                <div class="table-responsive">
+                                    <table class="table align-middle">
+                                        <thead>
+                                        <tr>
+                                            <th>Mã đơn</th>
+                                            <th>Ngày đặt</th>
+                                            <th>Trạng thái</th>
+                                            <th class="text-end">Tổng tiền</th>
+                                            <th class="text-end">Hành động</th>
+                                        </tr>
+                                        </thead>
+                                        <tbody>
+                                        <tr th:each="o : ${orderPage.content}">
+                                            <td th:text="${'#' + o.orderId}"></td>
+                                            <td th:text="${#temporals.format(o.orderedAt,'dd/MM/yyyy')}"></td>
+                                            <td>
+                                                <span class="badge"
+                                                      th:classappend="${o.orderStatus != null and o.orderStatus.name() == 'CANCELED' ? 'bg-danger' : (o.orderStatus != null and o.orderStatus.name() == 'DELIVERY_FAILED' ? 'bg-warning' : (o.orderStatus != null and o.orderStatus.name() == 'DELIVERED' ? 'bg-success' : 'bg-secondary'))}"
+                                                      th:text="${o.orderStatus != null ? o.orderStatus.label : 'Không xác định'}"></span>
+                                            </td>
+                                            <td class="text-end" th:text="${#numbers.formatDecimal(o.totalAmount,0,'COMMA',0,'POINT')} + ' ₫'"></td>
+                                            <td class="text-end d-flex gap-2 justify-content-end">
+                                                <a th:href="@{/order-details/{id}(id=${o.orderId})}" class="axil-btn btn-sm">Xem</a>
+                                                <form th:if="${o.orderStatus != null and o.orderStatus.name() == 'PENDING'}"
+                                                      th:action="@{/my-orders/cancel/{id}(id=${o.orderId})}"
+                                                      method="post"
+                                                      class="cancel-form">
+                                                    <button type="button" class="axil-btn btn-sm btn-danger cancel-order-btn" data-bs-toggle="modal" data-bs-target="#cancelOrderModal">Hủy đơn</button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <nav th:if="${orderPage.totalPages > 1}" aria-label="Page navigation">
+                                    <ul class="pagination">
+                                        <li class="page-item" th:classappend="${orderPage.first} ? 'disabled'">
+                                            <a class="page-link" th:href="@{/my-orders(page=${orderPage.number})}" aria-label="Previous">&laquo;</a>
+                                        </li>
+
+                                        <li class="page-item" th:each="i : ${#numbers.sequence(1, orderPage.totalPages)}"
+                                            th:classappend="${i == orderPage.number + 1} ? 'active'">
+                                            <a class="page-link" th:href="@{/my-orders(page=${i})}" th:text="${i}"></a>
+                                        </li>
+
+                                        <li class="page-item" th:classappend="${orderPage.last} ? 'disabled'">
+                                            <a class="page-link" th:href="@{/my-orders(page=${orderPage.number + 2})}" aria-label="Next">&raquo;</a>
+                                        </li>
+                                    </ul>
+                                </nav>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="cancelOrderModal" tabindex="-1" aria-labelledby="cancelOrderModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="cancelOrderModalLabel">Xác nhận Hủy Đơn Hàng</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    Bạn có chắc chắn muốn hủy đơn hàng này không? Hành động này không thể hoàn tác.
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy bỏ</button>
+                    <button type="button" class="btn btn-danger" id="confirmCancelBtn">Xác nhận Hủy</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<th:block layout:fragment="script">
+    <script th:inline="javascript">
+        document.addEventListener('DOMContentLoaded', function () {
+            // --- Logic cho Alert tự đóng ---
+            document.querySelectorAll('.alert[data-auto-hide="true"]').forEach(function (el) {
+                setTimeout(function () {
+                    try {
+                        if (window.bootstrap && bootstrap.Alert) { bootstrap.Alert.getOrCreateInstance(el).close(); }
+                        else { el.classList.remove('show'); }
+                    } catch (e) {}
+                }, 4000);
+            });
+
+            // --- Logic cho Modal Hủy Đơn Hàng ---
+            let formToSubmit = null;
+            const confirmCancelBtn = document.getElementById('confirmCancelBtn');
+
+            document.querySelectorAll('.cancel-order-btn').forEach(button => {
+                button.addEventListener('click', function (event) {
+                    formToSubmit = event.target.closest('form');
+                });
+            });
+
+            if (confirmCancelBtn) {
+                confirmCancelBtn.addEventListener('click', function () {
+                    if (formToSubmit) {
+                        formToSubmit.submit();
+                    }
+                });
+            }
+        });
+    </script>
+</th:block>
+</body>
+</html>

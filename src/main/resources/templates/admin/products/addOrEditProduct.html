@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{/layouts/admin}">
+<head>
+    <title th:text="${product.productId != null ? 'Sửa sản phẩm' : 'Thêm sản phẩm'}"></title>
+</head>
+<body>
+<h4 class="fw-bold py-3 mb-4" layout:fragment="page_title">
+    <span class="text-muted fw-light">Sản phẩm /</span>
+    <span th:text="${product.productId != null ? 'Chỉnh sửa' : 'Thêm mới'}"></span>
+</h4>
+
+<main layout:fragment="content">
+    <div class="card">
+        <div class="card-body">
+            <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show" role="alert">
+                <span th:text="${errorMessage}"></span>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            <form th:action="@{/admin/product/save}" th:object="${product}" method="post" enctype="multipart/form-data">
+                <input type="hidden" th:field="*{productId}">
+                <input type="hidden" th:field="*{imageUrl}">
+
+                <input type="hidden" name="filterKeyword" th:value="${keyword}">
+                <input type="hidden" name="filterStatus" th:value="${status}">
+                <input type="hidden" name="filterSort" th:value="${sort}">
+                <input type="hidden" name="page" th:value="${page}">
+                <input type="hidden" name="size" th:value="${size}">
+                <input type="hidden" name="filterCategoryId" th:value="${categoryId}">
+                <input type="hidden" name="filterBrandId" th:value="${brandId}">
+
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="mb-3">
+                            <label class="form-label">Tên sản phẩm <span class="text-danger">*</span></label>
+                            <input type="text" th:field="*{name}" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Mô tả sản phẩm</label>
+                            <textarea th:field="*{description}" class="form-control" rows="10"></textarea>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label">Danh mục <span class="text-danger">*</span></label>
+                            <select th:field="*{categoryId}" class="form-select" required>
+                                <option value="">-- Chọn danh mục --</option>
+                                <option th:each="cat : ${categories}" th:value="${cat.categoryId}" th:text="${cat.categoryName}"></option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Thương hiệu <span class="text-danger">*</span></label>
+                            <select th:field="*{brandId}" class="form-select" required>
+                                <option value="">-- Chọn thương hiệu --</option>
+                                <option th:each="brand : ${brands}" th:value="${brand.brandId}" th:text="${brand.brandName}"></option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Giá niêm yết <span class="text-danger">*</span></label>
+                            <input type="number" th:field="*{originalPrice}" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Giá bán <span class="text-danger">*</span></label>
+                            <input type="number" th:field="*{price}" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Hạn sử dụng (ngày)</label>
+                            <input type="number" th:field="*{expirationDays}" class="form-control" placeholder="Ví dụ: 365">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Hình ảnh đại diện</label>
+                            <input type="file" name="imageFile" class="form-control" accept="image/*">
+                        </div>
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" th:field="*{active}">
+                            <label class="form-check-label">Kích hoạt</label>
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="my-4">
+                <a th:href="@{/admin/product(page=${page}, size=${size}, filterKeyword=${keyword}, filterStatus=${status}, filterSort=${sort}, filterCategoryId=${categoryId}, filterBrandId=${brandId})}" class="btn btn-outline-secondary">Quay lại</a>
+                <button type="submit" class="btn btn-primary">Lưu sản phẩm</button>
+            </form>
+        </div>
+    </div>
+</main>
+</body>
+</html>

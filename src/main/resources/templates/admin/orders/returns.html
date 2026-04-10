@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layouts/admin}">
+
+<head>
+    <title>Quản lý Yêu cầu Hoàn trả</title>
+</head>
+
+<body>
+
+<h1 layout:fragment="page_title" class="h2">
+    <h4 class="fw-bold py-3 mb-4">
+        <span class="text-muted fw-light">Đơn hàng /</span> Quản lý Hoàn trả
+    </h4>
+</h1>
+
+<section layout:fragment="content">
+    <div class="card">
+        <h5 class="card-header">Danh sách Yêu cầu</h5>
+        <div class="table-responsive text-nowrap">
+            <table class="table table-hover">
+                <thead>
+                <tr>
+                    <th>Mã YC</th>
+                    <th>Mã ĐH</th>
+                    <th>Người dùng</th>
+                    <th>Ngày Yêu cầu</th>
+                    <th>Trạng thái</th>
+                    <th>Hành động</th>
+                </tr>
+                </thead>
+                <tbody class="table-border-bottom-0">
+                <tr th:each="req : ${returnRequests}">
+                    <td th:text="${req.id}"></td>
+                    <td>
+                        <a th:href="@{/admin/order/{id}(id=${req.order.orderId})}" th:text="${req.order.orderId}"></a>
+                    </td>
+                    <td th:text="${req.user.fullName}"></td>
+                    <td th:text="${#dates.format(req.requestedAt, 'dd-MM-yyyy HH:mm')}"></td>
+                    <td>
+                                <span th:text="${req.requestStatus.label}"
+                                      th:classappend="${req.requestStatus.name() == 'PENDING' ? 'badge bg-label-warning' : (req.requestStatus.name() == 'APPROVED' ? 'badge bg-label-success' : 'badge bg-label-danger')}">
+                                </span>
+                    </td>
+                    <td>
+                        <a th:href="@{/admin/returns/{id}(id=${req.id})}" class="btn btn-sm btn-info">Xem xét</a>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+</body>
+</html>

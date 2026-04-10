@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="vi"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layouts/user}">
+<head>
+    <title>Thanh toán</title>
+    <style>
+        /* ============ CSS (Giữ nguyên các style cũ) ============ */
+        .axil-order-summery .summery-table th:nth-child(2),
+        .axil-order-summery .summery-table td:nth-child(2) {
+            text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums;
+        }
+        .axil-order-summery .summery-table .order-shipping td:nth-child(2) {
+            display: table-cell !important; text-align: right !important; padding-left: 0 !important;
+        }
+        .axil-order-summery .summery-table td:nth-child(2) sup,
+        .axil-order-summery .summery-table td:nth-child(2) .currency,
+        .axil-order-summery .summery-table td:nth-child(2) .woocommerce-Price-currencySymbol {
+            position: static !important; top: 0 !important; vertical-align: baseline !important; font-size: 1em !important; line-height: 1 !important;
+        }
+        .axil-order-summery { width: 100%; }
+
+        /* Style cho địa chỉ được chọn */
+        .custom-address-option input[type="radio"]:checked + label {
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 0px var(--color-primary);
+        }
+
+        /* === BỎ VIỀN XANH KHI FOCUS === */
+        .custom-address-option .address-radio:focus,
+        .custom-address-option .address-radio:focus-visible {
+             outline: none;
+             box-shadow: none;
+        }
+        /* Chỉ áp dụng viền đỏ khi ĐÃ CHỌN (checked) */
+         .custom-address-option .address-radio:checked + label,
+         .custom-address-option .address-radio:focus + label { /* Thêm :focus ở đây để thay thế */
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 1px var(--color-primary);
+        }
+        /* Đảm bảo label thường không có viền khi radio không được check */
+         .custom-address-option .address-radio:not(:checked):focus + label {
+             border-color: #f1f1f1; /* Màu viền mặc định của bạn */
+             box-shadow: none;
+         }
+        /* === KẾT THÚC BỎ VIỀN XANH === */
+
+        #shipping-options-loading, #shipping-methods-loading { display: none; }
+        #shipping-info-display { margin-top: 5px; font-size: 0.9em; color: #555; }
+        #shipping-error, #shipping-methods-error { margin-top: 10px; }
+
+        /* === CSS MỚI CHO PHƯƠNG THỨC VẬN CHUYỂN === */
+        #shipping-method-selection { border-top: 1px solid #e5e5e5; padding-top: 20px; margin-top: 30px; }
+        .shipping-method-option { margin-bottom: 15px; }
+        .shipping-method-option input[type="radio"] { margin-right: 10px; }
+        .shipping-method-option label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            font-weight: normal;
+            cursor: pointer;
+        }
+        .shipping-method-option label .method-details {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+         .shipping-method-option label .method-name {
+             font-weight: 500;
+             color: #333;
+         }
+         .shipping-method-option label .method-time {
+             font-size: 0.9em;
+             color: #666;
+         }
+        .shipping-method-option label .method-fee {
+            font-weight: 600;
+            white-space: nowrap;
+            margin-left: 15px;
+        }
+        .shipping-method-option input[type="radio"]:checked + label {
+             color: var(--color-primary);
+        }
+        /* === KẾT THÚC CSS MỚI === */
+    </style>
+</head>
+
+<body>
+<main layout:fragment="content">
+    <div class="axil-checkout-area axil-section-gap">
+        <div class="container">
+            <form id="checkout-form" th:action="@{/place-order}" method="post">
+                <input type="hidden" name="calculated_shipping_fee" id="calculated_shipping_fee" value="0">
+                <input type="hidden" name="shipping_method_name" id="shipping_method_name" value="">
+                <input type="hidden" name="shipping_option_id" id="shipping_option_id" value="">
+
+                <div class="row">
+                    <div class="col-lg-6">
+                        <div class="axil-checkout-billing">
+                            <h4 class="title mb--40">Chi tiết giao hàng</h4>
+                            <div class="mb-4">
+                                <a th:href="@{/cart}" class="axil-btn btn-outline btn-sm"><i class="fal fa-long-arrow-left"></i> Quay lại giỏ hàng</a>
+                            </div>
+                            <div th:if="${error}" th:text="${error}" class="alert alert-danger"></div>
+
+                            <div th:if="${addresses == null or addresses.isEmpty()}" class="mb-4">
+                            </div>
+                            <div th:if="${addresses != null and !addresses.isEmpty()}">
+                                <div th:each="address, iter : ${addresses}" class="custom-address-option">
+                                    <div class="address-main-content">
+                                        <input type="radio" name="shipping_address"
+                                               th:id="${'address' + iter.index}"
+                                               th:value="${address.addressId}"
+                                               th:checked="${iter.index == 0}"
+                                               class="address-radio">
+                                        <label th:for="${'address' + iter.index}" class="address-content" th:data-province="${address.province}">
+                                            <div class="address-header">
+                                                <strong th:text="${address.receiverName + ' | ' + address.phoneNumber}"></strong>
+                                            </div>
+                                            <span class="address-details"
+                                                  th:text="${address.streetAddress + ', ' + address.ward + ', ' + address.district + ', ' + address.province}"></span>
+                                        </label>
+                                    </div>
+                                    <a th:href="@{/checkout/edit-address/{id}(id=${address.addressId})}" class="btn-sm address-edit-btn">Sửa</a>
+                                </div>
+                            </div>
+                            <div id="shipping-method-selection" class="mt-4">
+                                <h5 class="title mb--20">Phương thức vận chuyển</h5>
+                                <div id="shipping-methods-loading" class="text-center">
+                                    <div class="spinner-border spinner-border-sm ms-2" role="status"><span class="visually-hidden">Loading...</span></div>
+                                    <span>Đang tìm phương thức vận chuyển...</span>
+                                </div>
+                                <div id="shipping-methods-error" class="alert alert-warning" style="display: none;"></div>
+                                <div id="shipping-options-list">
+                                    <p class="text-muted" id="shipping-placeholder">Vui lòng chọn địa chỉ giao hàng để xem các tùy chọn vận chuyển.</p>
+                                </div>
+                            </div>
+                            <div class="form-group mt-4">
+                                <label>Ghi chú đơn hàng (tùy chọn)</label>
+                                <textarea name="notes" rows="2" placeholder="Ghi chú về đơn hàng của bạn..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-6">
+                        <div class="axil-order-summery order-checkout-summery">
+                            <h5 class="title mb--20">Đơn hàng của bạn</h5>
+                            <div class="summery-table-wrap">
+                                <table class="table summery-table">
+                                    <colgroup><col><col style="width: 170px;"></colgroup>
+                                    <thead><tr><th>Sản phẩm</th><th>Tạm tính</th></tr></thead>
+                                    <tbody>
+                                    <tr th:each="item : ${cartItems}" class="order-product">
+                                        <td th:text="${item.product.name + ' x ' + item.quantity}"></td>
+                                        <td th:text="${#numbers.formatDecimal(item.lineTotal, 0, 'COMMA', 0, 'POINT')} + ' ₫'"></td>
+                                    </tr>
+                                    <tr class="order-subtotal">
+                                        <td>Tạm tính</td>
+                                        <td th:text="${#numbers.formatDecimal(subtotal, 0, 'COMMA', 0, 'POINT')} + ' ₫'"></td>
+                                    </tr>
+                                    <tr class="order-shipping text-success" th:if="${membershipDiscount != null and membershipDiscount > 0}">
+                                        <td>Giảm giá hạng <strong th:text="${membershipTier != null ? membershipTier.tierName : ''}"></strong></td>
+                                        <td th:text="${'-' + #numbers.formatDecimal(membershipDiscount, 0, 'COMMA', 0, 'POINT') + ' ₫'}"></td>
+                                    </tr>
+                                    <tr class="order-shipping text-success" th:if="${couponDiscount != null and couponDiscount > 0}">
+                                        <td>Mã giảm giá</td>
+                                        <td th:text="${'-' + #numbers.formatDecimal(couponDiscount, 0, 'COMMA', 0, 'POINT') + ' ₫'}"></td>
+                                    </tr>
+                                    <tr class="order-shipping">
+                                        <td>Phí vận chuyển</td>
+                                        <td id="shipping-fee-amount" th:text="${#numbers.formatDecimal(shippingFee, 0, 'COMMA', 0, 'POINT')} + ' ₫'"></td>
+                                    </tr>
+                                    <tr class="order-total">
+                                        <td>Tổng cộng</td>
+                                        <td id="total-amount" class="order-total-amount"
+                                            th:text="${#numbers.formatDecimal(total, 0, 'COMMA', 0, 'POINT')} + ' ₫'"></td>
+                                    </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div id="shipping-error" class="alert alert-warning mt-3" style="display: none;"></div>
+
+                            <div class="order-payment-method">
+                                <div class="single-payment">
+                                    <div class="input-group">
+                                        <input type="radio" id="pmCOD" name="payment_method" value="COD" checked>
+                                        <label for="pmCOD">Thanh toán khi nhận hàng (COD)</label>
+                                    </div>
+                                    <p>Thanh toán bằng tiền mặt khi nhận hàng.</p>
+                                </div>
+                                <div class="single-payment">
+                                    <div class="input-group">
+                                        <input type="radio" id="pmVietQR" name="payment_method" value="VN_PAY">
+                                        <label for="pmVietQR">Chuyển khoản VietQR</label>
+                                    </div>
+                                    <p>Tự động tạo mã QR cho đơn hàng của bạn.</p>
+                                </div>
+                            </div>
+
+                            <button type="submit"
+                                    id="place-order-button"
+                                    class="axil-btn btn-bg-primary checkout-btn"
+                                    th:disabled="${addresses == null or addresses.isEmpty()}">
+                                Tiếp tục thanh toán
+                            </button>
+                            <div th:if="${addresses == null or addresses.isEmpty()}" class="text-danger mt-2 small">
+                                Vui lòng thêm địa chỉ giao hàng.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</main>
+
+<th:block layout:fragment="script">
+    <script th:inline="javascript">
+        document.addEventListener('DOMContentLoaded', function() {
+            // Lấy các element cần thiết
+            const addressRadios = document.querySelectorAll('input[name="shipping_address"]');
+            const shippingFeeElement = document.getElementById('shipping-fee-amount');
+            const totalAmountElement = document.getElementById('total-amount');
+            const shippingMethodsLoading = document.getElementById('shipping-methods-loading');
+            const shippingMethodsErrorDiv = document.getElementById('shipping-methods-error');
+            const shippingOptionsListDiv = document.getElementById('shipping-options-list');
+            const shippingPlaceholder = document.getElementById('shipping-placeholder');
+            const checkoutButton = document.getElementById('place-order-button');
+            const calculatedShippingFeeInput = document.getElementById('calculated_shipping_fee');
+            const shippingMethodNameInput = document.getElementById('shipping_method_name');
+            const shippingOptionIdInput = document.getElementById('shipping_option_id');
+
+            // Lấy giá trị tiền từ Thymeleaf
+            const subtotal = parseFloat('[[${subtotal}]]') || 0;
+            const couponDiscount = parseFloat('[[${couponDiscount ?: 0}]]') || 0;
+            const membershipDiscount = parseFloat('[[${membershipDiscount ?: 0}]]') || 0;
+            let currentShippingFee = 0;
+
+            function formatCurrency(amount) {
+                if (amount == null || isNaN(amount)) return '0 ₫';
+                return Math.round(amount).toLocaleString('vi-VN') + ' ₫';
+            }
+
+            function updateTotalAmount() {
+                const total = subtotal - couponDiscount - membershipDiscount + currentShippingFee;
+                totalAmountElement.textContent = formatCurrency(Math.max(0, total));
+            }
+
+            async function fetchShippingOptions(province) {
+                shippingMethodsLoading.style.display = 'block';
+                shippingMethodsErrorDiv.style.display = 'none';
+                shippingOptionsListDiv.innerHTML = '';
+                shippingPlaceholder.style.display = 'none';
+                checkoutButton.disabled = true;
+                currentShippingFee = 0;
+                updateTotalAmount();
+                shippingFeeElement.textContent = formatCurrency(0);
+                calculatedShippingFeeInput.value = '0';
+                shippingMethodNameInput.value = '';
+                shippingOptionIdInput.value = '';
+
+                try {
+                    const response = await fetch(`/api/available-shipping-options?province=${encodeURIComponent(province)}`);
+
+                    if (!response.ok) {
+                        let errorMsg = `Lỗi HTTP: ${response.status}`;
+                        try {
+                            const errorData = await response.json();
+                            errorMsg = errorData.error || errorMsg;
+                        } catch (e) {}
+                        throw new Error(errorMsg);
+                    }
+
+                    const shippingOptions = await response.json();
+
+                    if (!shippingOptions || shippingOptions.length === 0) {
+                        throw new Error('Không tìm thấy phương thức vận chuyển phù hợp cho địa chỉ này.');
+                    }
+
+                    shippingOptions.forEach((option, index) => {
+                        const optionDiv = document.createElement('div');
+                        optionDiv.className = 'shipping-method-option form-group';
+
+                        const radioInput = document.createElement('input');
+                        radioInput.type = 'radio';
+                        radioInput.name = 'shipping_option';
+
+                        radioInput.id = `shipping_opt_${option.shippingFeeId}`;
+                        radioInput.value = option.shippingFeeId;
+                        radioInput.dataset.fee = option.feeAmount;
+                        radioInput.dataset.name = (option.carrierName || '') + ' - ' + (option.packageName || '');
+                        radioInput.dataset.method = option.shippingMethod || '';
+
+                        const label = document.createElement('label');
+                        label.htmlFor = `shipping_opt_${option.shippingFeeId}`;
+
+                        const detailsSpan = document.createElement('span');
+                        detailsSpan.className = 'method-details';
+
+                        const nameSpan = document.createElement('span');
+                        nameSpan.className = 'method-name';
+
+                        const methodLabel = option.shippingMethodLabel || option.shippingMethod || '';
+                        nameSpan.textContent = methodLabel
+                            ? `${option.packageName || 'Gói vận chuyển'} (${methodLabel})`
+                            : (option.packageName || 'Gói vận chuyển');
+                        detailsSpan.appendChild(nameSpan);
+
+                        if (option.minDeliveryDays != null && option.maxDeliveryDays != null && option.timeUnit) {
+                            const timeSpan = document.createElement('span');
+                            timeSpan.className = 'method-time';
+                            timeSpan.textContent = `(Dự kiến ${option.minDeliveryDays}-${option.maxDeliveryDays} ${option.timeUnit})`;
+                            detailsSpan.appendChild(timeSpan);
+                        }
+
+                        const feeSpan = document.createElement('span');
+                        feeSpan.className = 'method-fee';
+                        feeSpan.textContent = formatCurrency(option.feeAmount);
+
+                        label.appendChild(detailsSpan);
+                        label.appendChild(feeSpan);
+
+                        optionDiv.appendChild(radioInput);
+                        optionDiv.appendChild(label);
+                        shippingOptionsListDiv.appendChild(optionDiv);
+
+                        radioInput.addEventListener('change', function() {
+                            if (this.checked) {
+                                currentShippingFee = parseFloat(this.dataset.fee) || 0;
+                                calculatedShippingFeeInput.value = currentShippingFee.toFixed(0);
+                                shippingMethodNameInput.value = this.dataset.method || '';
+
+                                shippingOptionIdInput.value = this.value || '';
+                                shippingFeeElement.textContent = formatCurrency(currentShippingFee);
+                                updateTotalAmount();
+                                checkoutButton.disabled = false;
+                            }
+                        });
+                    });
+
+                    const firstOptionRadio = shippingOptionsListDiv.querySelector('input[name="shipping_option"]');
+                    if(firstOptionRadio){
+                        firstOptionRadio.checked = true;
+                        firstOptionRadio.dispatchEvent(new Event('change'));
+                    } else {
+                         checkoutButton.disabled = true;
+                    }
+
+                } catch (error) {
+                    console.error('Lỗi khi lấy PTVC:', error);
+                    shippingMethodsErrorDiv.textContent = error.message || 'Không thể tải phương thức vận chuyển.';
+                    shippingMethodsErrorDiv.style.display = 'block';
+                    shippingFeeElement.textContent = formatCurrency(0);
+                    currentShippingFee = 0;
+                    updateTotalAmount();
+                    checkoutButton.disabled = true;
+                    calculatedShippingFeeInput.value = '0';
+                    shippingMethodNameInput.value = '';
+                    shippingOptionIdInput.value = '';
+                } finally {
+                    shippingMethodsLoading.style.display = 'none';
+                }
+            }
+
+            addressRadios.forEach(radio => {
+                radio.addEventListener('change', function() {
+                    if (this.checked) {
+                        shippingOptionsListDiv.innerHTML = '';
+                        shippingPlaceholder.style.display = 'block';
+                        shippingMethodsErrorDiv.style.display = 'none';
+                        checkoutButton.disabled = true;
+                        currentShippingFee = 0;
+                        updateTotalAmount();
+                        shippingFeeElement.textContent = formatCurrency(0);
+                        calculatedShippingFeeInput.value = '0';
+                        shippingMethodNameInput.value = '';
+                        shippingOptionIdInput.value = '';
+
+                        const selectedLabel = document.querySelector(`label[for="${this.id}"]`);
+                        const province = selectedLabel ? selectedLabel.getAttribute('data-province') : null;
+                        if (province) {
+                            fetchShippingOptions(province);
+                        } else {
+                            shippingMethodsErrorDiv.textContent = 'Địa chỉ đã chọn thiếu thông tin Tỉnh/Thành phố.';
+                            shippingMethodsErrorDiv.style.display = 'block';
+                        }
+                    }
+                });
+            });
+
+            const initiallyChecked = document.querySelector('input[name="shipping_address"]:checked');
+            if (initiallyChecked) {
+                 const initialLabel = document.querySelector(`label[for="${initiallyChecked.id}"]`);
+                 const initialProvince = initialLabel ? initialLabel.getAttribute('data-province') : null;
+                 if (initialProvince) {
+                     checkoutButton.disabled = true;
+                     fetchShippingOptions(initialProvince);
+                 } else {
+                     shippingMethodsErrorDiv.textContent = 'Địa chỉ mặc định thiếu thông tin Tỉnh/Thành phố.';
+                     shippingMethodsErrorDiv.style.display = 'block';
+                     checkoutButton.disabled = true;
+                 }
+            } else if (addressRadios.length > 0) {
+                 shippingMethodsErrorDiv.textContent = 'Vui lòng chọn một địa chỉ giao hàng.';
+                 shippingMethodsErrorDiv.style.display = 'block';
+                 checkoutButton.disabled = true;
+            } else {
+                 checkoutButton.disabled = true;
+            }
+
+        });
+    </script>
+</th:block>
+
+</body>
+</html>

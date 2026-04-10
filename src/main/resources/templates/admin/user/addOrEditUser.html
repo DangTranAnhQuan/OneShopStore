@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{/layouts/admin}">
+<head>
+    <title th:text="${userRequest.userId == null ? 'Thêm người dùng' : 'Sửa người dùng'}"></title>
+</head>
+<body>
+<h4 class="fw-bold py-3 mb-4" layout:fragment="page_title">
+    <span class="text-muted fw-light">Quản lý tài khoản /</span>
+    <span th:text="${userRequest.userId == null ? 'Thêm mới' : 'Chỉnh sửa'}"></span>
+</h4>
+<main layout:fragment="content">
+    <div class="card">
+        <div class="card-body">
+            <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show" role="alert">
+                <span th:text="${errorMessage}"></span>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            <form th:action="@{/admin/user/save}" th:object="${userRequest}" method="post" enctype="multipart/form-data">
+                <input type="hidden" th:field="*{userId}">
+                <input type="hidden" th:field="*{avatarUrl}">
+
+                <input type="hidden" name="page" th:value="${page}">
+                <input type="hidden" name="size" th:value="${size}">
+                <input type="hidden" name="filterKeyword" th:value="${keyword}">
+                <input type="hidden" name="filterRoleId" th:value="${roleId}">
+                <input type="hidden" name="filterTierId" th:value="${tierId}">
+                <input type="hidden" name="filterStatus" th:value="${status}">
+
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="row">
+                            <div class="mb-3 col-md-6"><label class="form-label">Họ tên <span class="text-danger">*</span></label><input type="text" class="form-control" th:field="*{fullName}" required></div>
+                            <div class="mb-3 col-md-6"><label class="form-label">Email <span class="text-danger">*</span></label><input type="email" class="form-control" th:field="*{email}" required></div>
+                            <div class="mb-3 col-md-6"><label class="form-label">Tên đăng nhập <span class="text-danger">*</span></label><input type="text" class="form-control" th:field="*{username}" required></div>
+                            <div class="mb-3 col-md-6"><label class="form-label">Mật khẩu <span class="text-danger">*</span></label><input type="password" class="form-control" th:field="*{password}" th:placeholder="${userRequest.userId == null ? 'Bắt buộc' : 'Để trống nếu không đổi'}" th:required="${userRequest.userId == null}"></div>
+                            <div class="mb-3 col-md-6"><label class="form-label">Số điện thoại</label><input type="text" class="form-control" th:field="*{phoneNumber}"></div>
+                            <div class="mb-3 col-md-6"><label class="form-label">Vai trò <span class="text-danger">*</span></label><select class="form-select" th:field="*{roleId}" required><option th:each="r : ${roles}" th:value="${r.roleId}" th:text="${r.roleName}"></option></select></div>
+                            <div class="mb-3 col-md-6"><label class="form-label">Hạng thành viên <span class="text-danger">*</span></label><select class="form-select" th:field="*{membershipTierId}"><option value="">-- Không có --</option><option th:each="t : ${tiers}" th:value="${t.tierId}" th:text="${t.tierName}"></option></select></div>
+                            <div class="mb-3 col-md-6"><label class="form-label">Trạng thái</label><select class="form-select" th:field="*{status}"><option value="ACTIVE">Hoạt động</option><option value="INACTIVE">Khóa</option><option value="BANNED">Cấm</option></select></div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label">Ảnh đại diện</label>
+                            <div class="d-flex flex-column align-items-center">
+                                <img id="avatarPreview"
+                                     th:src="${userRequest.avatarUrl != null ? '/uploads/' + userRequest.avatarUrl : '/admin/assets/img/avatars/default.png'}"
+                                     alt="Ảnh đại diện"
+                                     class="img-thumbnail rounded mb-3"
+                                     style="width: 150px; height: 150px; object-fit: cover;">
+                                <input type="file" name="avatarFile" id="avatarFile" class="form-control" accept="image/*">
+                                <small class="text-muted mt-2">Để trống nếu không muốn thay đổi ảnh.</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-3">
+                    <a th:href="@{/admin/user(page=${page}, size=${size}, filterKeyword=${keyword}, filterRoleId=${roleId}, filterTierId=${tierId}, filterStatus=${status})}" class="btn btn-outline-secondary">Hủy</a>
+                    <button type="submit" class="btn btn-primary" th:text="${userRequest.userId == null ? 'Thêm người dùng' : 'Cập nhật'}"></button>
+                </div>
+            </form>
+        </div>
+    </div>
+</main>
+
+</body>
+</html>

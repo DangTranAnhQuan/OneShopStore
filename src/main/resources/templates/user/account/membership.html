@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layouts/user}">
+<head>
+    <title>Hạng Thành Viên</title>
+    <style>
+        .axil-dashboard-author .thumbnail img {
+            width: 80px; height: 80px; border-radius: 50%; object-fit: cover;
+        }
+        .membership-card {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .membership-card .tier-name {
+            font-size: 1.8rem;
+            font-weight: 600;
+            color: var(--color-primary); /* Hoặc màu tương ứng với hạng */
+            margin-bottom: 10px;
+        }
+        .membership-card .points-display {
+            font-size: 1.2rem;
+            color: #555;
+            margin-bottom: 20px;
+        }
+        .membership-card .points-display strong {
+            font-size: 1.5rem;
+            color: #333;
+        }
+        .progress { height: 10px; margin-bottom: 5px; }
+        .progress-info { font-size: 0.9em; color: #666; }
+        .benefits-list { list-style: none; padding: 0; margin-top: 20px; }
+        .benefits-list li { margin-bottom: 10px; }
+        .benefits-list li i { color: var(--color-primary); margin-right: 8px; }
+        .tier-comparison { margin-top: 40px; }
+        .tier-comparison h5 { margin-bottom: 20px; }
+        .tier-comparison .tier-box {
+            border: 1px solid #eee;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            background-color: #fff;
+        }
+        .tier-comparison .tier-box h6 { font-weight: 600; }
+         .tier-comparison .current-tier {
+             border-left: 4px solid var(--color-primary);
+             background-color: #f0f8ff; /* Light blue background */
+         }
+    </style>
+</head>
+<body>
+<div layout:fragment="content">
+    <div class="axil-dashboard-area axil-section-gap">
+        <div class="container">
+            <div class="axil-dashboard-warp">
+
+                <div class="axil-dashboard-author">
+                    <div class="media">
+                        <div class="thumbnail">
+                            <img th:src="${user.avatarUrl != null and !#strings.isEmpty(user.avatarUrl) ? '/uploads/' + user.avatarUrl : '/web/assets/images/product/author1.png'}" alt="Avatar">
+                        </div>
+                        <div class="media-body">
+                            <h5 class="title mb-0" th:text="${'Xin chào, ' + user.fullName}"></h5>
+                            <span class="joining-date">Thành viên OneShop</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-xl-3 col-md-4">
+                        <aside class="axil-dashboard-aside">
+                            <nav class="axil-dashboard-nav">
+                                <div class="nav nav-tabs" role="tablist">
+                                    <a class="nav-item nav-link" th:href="@{/my-account}"><i class="fas fa-user"></i>Chi tiết tài khoản</a>
+                                    <a class="nav-item nav-link active" th:href="@{/my-membership}"><i class="fas fa-medal"></i>Hạng thành viên</a>
+                                    <a class="nav-item nav-link" th:href="@{/my-orders}"><i class="fas fa-shopping-basket"></i>Đơn hàng</a>
+                                    <a class="nav-item nav-link" th:href="@{/my-account(tab=${'addresses'})}"><i class="fas fa-home"></i>Địa chỉ</a>
+                                    <form th:action="@{/logout}" method="post" class="nav-item" style="padding: 0; border: none; background: none;">
+                                        <button type="submit" class="nav-link" style="all: unset; cursor:pointer; display:block; width:100%; text-align:left; padding:15px 25px; color: var(--color-body); border: none; background: none;">
+                                            Đăng xuất
+                                        </button>
+                                    </form>
+                                </div>
+                            </nav>
+                        </aside>
+                    </div>
+
+                    <div class="col-xl-9 col-md-8">
+                        <div class="axil-dashboard-account">
+                            <h4>Hạng Thành Viên Của Bạn</h4>
+
+                            <div class="membership-card" th:if="${user.membershipTier != null}">
+                                <div class="tier-name" th:text="${user.membershipTier.tierName}">Hạng Vàng</div>
+                                <div class="points-display">
+                                    Điểm tích lũy: <strong th:text="${user.rewardPoints}">2500</strong> điểm
+                                </div>
+
+                                <th:block th:with="currentTier=${user.membershipTier}, currentPoints=${user.rewardPoints}">
+                                    <th:block th:each="tier, iterStat : ${allTiers}" th:if="${tier.minPoints > currentTier.minPoints}">
+                                        <th:block th:if="${iterStat.first}"> <th:block th:with="pointsNeeded=${tier.minPoints - currentPoints}, progressPercent=${pointsNeeded > 0 ? (currentPoints - currentTier.minPoints) * 100.0 / (tier.minPoints - currentTier.minPoints) : 100}">
+                                            <div class="progress">
+                                                <div class="progress-bar" role="progressbar" th:style="${'width: ' + progressPercent + '%;'}" th:aria-valuenow="${progressPercent}" aria-valuemin="0" aria-valuemax="100"></div>
+                                            </div>
+                                            <div class="progress-info" th:if="${pointsNeeded > 0}">
+                                                Cần <strong th:text="${pointsNeeded}">500</strong> điểm nữa để đạt <strong th:text="${tier.tierName}">Hạng Bạch Kim</strong>
+                                            </div>
+                                            <div class="progress-info" th:unless="${pointsNeeded > 0}">
+                                                Bạn đã đạt đủ điểm cho hạng tiếp theo!
+                                            </div>
+                                        </th:block>
+                                        </th:block>
+                                    </th:block>
+                                    <div class="progress-info" th:if="${allTiers[allTiers.size()-1].tierId == currentTier.tierId}">
+                                        Chúc mừng! Bạn đã đạt hạng thành viên cao nhất.
+                                    </div>
+                                </th:block>
+
+                                <ul class="benefits-list">
+                                    <li><i class="fas fa-check-circle"></i> Giảm giá <strong th:text="${user.membershipTier.discountPercentage}">5</strong>% cho mỗi đơn hàng.</li>
+                                    <li><i class="fas fa-gift"></i> Ưu đãi đặc biệt vào ngày sinh nhật.</li>
+                                    <li><i class="fas fa-shipping-fast"></i> Miễn phí vận chuyển cho đơn hàng từ 1.000.000đ.</li>
+                                </ul>
+                            </div>
+                            <div class="membership-card" th:unless="${user.membershipTier != null}">
+                                <div class="tier-name">Chưa có hạng</div>
+                                <div class="points-display">
+                                    Điểm tích lũy: <strong th:text="${user.rewardPoints}">0</strong> điểm
+                                </div>
+                                <p>Hãy mua sắm để tích điểm và nhận ưu đãi!</p>
+                            </div>
+
+                            <div class="tier-comparison">
+                                <h5>Các Hạng Thành Viên</h5>
+                                <div class="row">
+                                    <div class="col-md-6" th:each="tier : ${allTiers}">
+                                        <div class="tier-box" th:classappend="${user.membershipTier != null and user.membershipTier.tierId == tier.tierId} ? 'current-tier' : ''">
+                                            <h6 th:text="${tier.tierName}">Hạng Bạc</h6>
+                                            <p class="mb-1">Điểm tối thiểu: <span th:text="${tier.minPoints}">500</span></p>
+                                            <p class="mb-0">Giảm giá: <span th:text="${tier.discountPercentage}">2</span>%</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>
