@@ -1,30 +1,25 @@
 package nhom17.OneShop.controller.admin;
 
 import nhom17.OneShop.entity.*;
-import nhom17.OneShop.entity.enums.ShippingMethod;
 import nhom17.OneShop.request.OrderUpdateRequest;
-import nhom17.OneShop.request.ShippingRequest;
 import nhom17.OneShop.service.OrderService;
-import nhom17.OneShop.service.ShippingFeeService;
+import nhom17.OneShop.facade.AdminOrderFacade;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.util.List;
-import java.util.Map;
 
 @Controller
 @RequestMapping("/admin/order")
 public class OrderController {
 
-    @Autowired
-    private OrderService orderService;
-    @Autowired
-    private ShippingFeeService shippingFeeService;
-
+    @Autowired private OrderService orderService;
+    
+    // TIÊM FACADE VÀO ĐÂY
+    @Autowired private AdminOrderFacade adminOrderFacade;
 
     @GetMapping
     public String listOrders(@RequestParam(name = "filterKeyword", required = false) String keyword,
@@ -36,18 +31,8 @@ public class OrderController {
                              @RequestParam(defaultValue = "10") int size,
                              Model model) {
 
-        Page<Order> orderPage = orderService.findAll(keyword, status, paymentMethod, paymentStatus, shippingMethod, page, size);
-        Map<Long, List<ShippingFee>> carriersWithFeesByOrder = orderService.getCarriersWithFeesByOrder(orderPage.getContent());
-        List<ShippingMethod> shippingMethods = shippingFeeService.findDistinctShippingMethods();
-        model.addAttribute("carriersWithFeesByOrder", carriersWithFeesByOrder);
-        model.addAttribute("orderPage", orderPage);
-        model.addAttribute("keyword", keyword);
-        model.addAttribute("status", status);
-        model.addAttribute("paymentMethod", paymentMethod);
-        model.addAttribute("paymentStatus", paymentStatus);
-        model.addAttribute("shippingMethod", shippingMethod);
-        model.addAttribute("shippingMethods", shippingMethods);
-        model.addAttribute("shippingRequest", new ShippingRequest());
+        // Facade tiếp nhận và xử lý việc gọi Service + Đổ Model
+        adminOrderFacade.prepareOrderListPage(keyword, status, paymentMethod, paymentStatus, shippingMethod, page, size, model);
         return "admin/orders/orders";
     }
 
@@ -61,9 +46,8 @@ public class OrderController {
                                   @RequestParam(defaultValue = "1") int page,
                                   @RequestParam(defaultValue = "10") int size) {
         Order order = orderService.findById(id);
-        if (order == null) {
-            return "redirect:/admin/order";
-        }
+        if (order == null) return "redirect:/admin/order";
+        
         OrderUpdateRequest updateRequest = new OrderUpdateRequest();
         updateRequest.setOrderStatus(order.getOrderStatus());
         updateRequest.setPaymentMethod(order.getPaymentMethod());
@@ -91,9 +75,8 @@ public class OrderController {
                                    @RequestParam(defaultValue = "1") int page,
                                    @RequestParam(defaultValue = "10") int size) {
         Order order = orderService.findById(id);
-        if (order == null) {
-            return "redirect:/admin/order";
-        }
+        if (order == null) return "redirect:/admin/order";
+        
         List<OrderStatusHistory> historyList = orderService.findHistoryByOrderId(id);
         model.addAttribute("order", order);
         model.addAttribute("historyList", historyList);
