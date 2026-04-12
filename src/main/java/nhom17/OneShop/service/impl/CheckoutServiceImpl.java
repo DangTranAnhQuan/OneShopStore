@@ -7,9 +7,9 @@ import nhom17.OneShop.entity.enums.OrderStatus;
 import nhom17.OneShop.entity.enums.PaymentMethod;
 import nhom17.OneShop.entity.enums.ShippingMethod;
 import nhom17.OneShop.entity.enums.VoucherStatus;
-import nhom17.OneShop.pattern.observer.ClearCartListener;
-import nhom17.OneShop.pattern.observer.EmailNotificationListener;
-import nhom17.OneShop.pattern.observer.OrderEventPublisher;
+import nhom17.OneShop.event.OrderEventPublisher;
+import nhom17.OneShop.listener.ClearCartListener;
+import nhom17.OneShop.listener.EmailNotificationListener;
 import nhom17.OneShop.repository.*;
 import nhom17.OneShop.service.CartService;
 import nhom17.OneShop.service.CheckoutService;
@@ -46,6 +46,7 @@ public class CheckoutServiceImpl implements CheckoutService {
         orderEventPublisher.registerListener(clearCartListener);
         orderEventPublisher.registerListener(emailNotificationListener);
     }
+
 
     @Override
     @Transactional
