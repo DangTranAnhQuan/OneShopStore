@@ -1,5 +1,6 @@
 package nhom17.OneShop.service.decorator;
 
+import nhom17.OneShop.entity.Order;
 import nhom17.OneShop.entity.User;
 import nhom17.OneShop.entity.enums.OtpPurpose;
 import nhom17.OneShop.service.EmailService;
@@ -27,6 +28,15 @@ public class LoggingEmailDecorator extends EmailServiceDecorator {
         log.info("[Email] Sending contact email from={} subject={}", sender, subject);
         super.sendContactEmail(user, subject, message);
         log.info("[Email] Contact email sent from={} subject={}", sender, subject);
+    }
+
+    @Override
+    public void sendOrderConfirmationEmail(Order order) {
+        Long orderId = order != null ? order.getOrderId() : null;
+        String toEmail = (order != null && order.getUser() != null) ? order.getUser().getEmail() : null;
+        log.info("[Email] Sending order confirmation email orderId={} to={}", orderId, toEmail);
+        super.sendOrderConfirmationEmail(order);
+        log.info("[Email] Order confirmation email sent orderId={} to={}", orderId, toEmail);
     }
 }
 

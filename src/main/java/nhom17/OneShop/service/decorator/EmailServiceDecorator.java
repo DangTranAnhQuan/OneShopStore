@@ -1,5 +1,6 @@
 package nhom17.OneShop.service.decorator;
 
+import nhom17.OneShop.entity.Order;
 import nhom17.OneShop.entity.User;
 import nhom17.OneShop.entity.enums.OtpPurpose;
 import nhom17.OneShop.service.EmailService;
@@ -20,6 +21,11 @@ public abstract class EmailServiceDecorator implements EmailService {
     @Override
     public void sendContactEmail(User user, String subject, String message) {
         delegate.sendContactEmail(user, subject, message);
+    }
+
+    @Override
+    public void sendOrderConfirmationEmail(Order order) {
+        delegate.sendOrderConfirmationEmail(order);
     }
 }
 

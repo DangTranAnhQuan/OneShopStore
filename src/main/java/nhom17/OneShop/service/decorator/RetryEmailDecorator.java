@@ -1,5 +1,6 @@
 package nhom17.OneShop.service.decorator;
 
+import nhom17.OneShop.entity.Order;
 import nhom17.OneShop.entity.enums.OtpPurpose;
 import nhom17.OneShop.service.EmailService;
 
@@ -36,6 +37,21 @@ public class RetryEmailDecorator extends EmailServiceDecorator {
         }
 
         throw new RuntimeException("Không thể gửi email OTP sau nhiều lần thử lại.", lastException);
+    }
+
+    @Override
+    public void sendOrderConfirmationEmail(Order order) {
+        RuntimeException lastException = null;
+        for (int attempt = 0; attempt <= maxRetries; attempt++) {
+            try {
+                super.sendOrderConfirmationEmail(order);
+                return;
+            } catch (RuntimeException ex) {
+                lastException = ex;
+            }
+        }
+
+        throw new RuntimeException("Không thể gửi email xác nhận đơn hàng sau nhiều lần thử lại.", lastException);
     }
 
     private void enforceSendLimit(String toEmail, OtpPurpose purpose) {

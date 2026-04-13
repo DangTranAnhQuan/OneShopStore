@@ -186,14 +186,4 @@ public class CheckoutServiceImpl implements CheckoutService {
 
         return savedOrder;
     }
-
-    // Helper method
-    // private Optional<User> getCurrentUserOptional() {
-    //     Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-    //     if (authentication == null || !authentication.isAuthenticated() || authentication.getPrincipal().equals("anonymousUser")) {
-    //         return Optional.empty();
-    //     }
-    //     String username = ((UserDetails) authentication.getPrincipal()).getUsername();
-    //     return userRepository.findByEmail(username);
-    // }
 }
