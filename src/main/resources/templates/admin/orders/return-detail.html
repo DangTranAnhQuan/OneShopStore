@@ -1,7 +1,6 @@
 <!DOCTYPE html>
-<html lang="vi" xmlns:th="http://www.thymeleaf.org"
-      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
-      layout:decorate="~{layouts/admin}">
+<html lang="vi" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+    layout:decorate="~{layouts/admin}">
 
 <head>
     <title>Chi tiết Yêu cầu Hoàn trả</title>
@@ -9,78 +8,95 @@
 
 <body>
 
-<h1 layout:fragment="page_title" class="h2">
-    <h4 class="fw-bold py-3 mb-4">
-        <span class="text-muted fw-light">Quản lý Hoàn trả /</span> Chi tiết Yêu cầu #[<span th:text="${returnRequest.id}"></span>]
-    </h4>
-</h1>
+    <h1 layout:fragment="page_title" class="h2">
+        <h4 class="fw-bold py-3 mb-4">
+            <span class="text-muted fw-light">Quản lý Hoàn trả /</span> Chi tiết Yêu cầu #[<span
+                th:text="${returnRequest.id}"></span>]
+        </h4>
+    </h1>
 
-<section layout:fragment="content">
+    <section layout:fragment="content">
 
-    <div th:if="${error}" class="alert alert-danger" role="alert" th:text="${error}"></div>
+        <div th:if="${error}" class="alert alert-danger" role="alert" th:text="${error}"></div>
 
-    <div class="row">
-        <div class="col-lg-7">
-            <div class="card mb-4">
-                <div class="card-header">Thông tin Yêu cầu</div>
-                <div class="card-body">
-                    <p><strong>Mã Đơn hàng:</strong> <a th:href="@{/admin/order/{id}(id=${returnRequest.order.orderId})}" th:text="${returnRequest.order.orderId}"></a></p>
-                    <p><strong>Người yêu cầu:</strong> <span th:text="${returnRequest.user.fullName}"></span></p>
-                    <p><strong>Email:</strong> <span th:text="${returnRequest.user.email}"></span></p>
-                    <p><strong>Ngày yêu cầu:</strong> <span th:text="${#dates.format(returnRequest.requestedAt, 'dd-MM-yyyy HH:mm')}"></span></p>
-                    <p><strong>Trạng thái:</strong>
-                        <span th:text="${returnRequest.requestStatus.label}"
-                              th:classappend="${returnRequest.requestStatus.name() == 'PENDING' ? 'badge bg-label-warning' : (returnRequest.requestStatus.name() == 'APPROVED' ? 'badge bg-label-success' : 'badge bg-label-danger')}">
+        <div class="row">
+            <div class="col-lg-7">
+                <div class="card mb-4">
+                    <div class="card-header">Thông tin Yêu cầu</div>
+                    <div class="card-body">
+                        <p><strong>Mã Đơn hàng:</strong> <a
+                                th:href="@{/admin/order/{id}(id=${returnRequest.order.orderId})}"
+                                th:text="${returnRequest.order.orderId}"></a></p>
+                        <p><strong>Người yêu cầu:</strong> <span th:text="${returnRequest.user.fullName}"></span></p>
+                        <p><strong>Email:</strong> <span th:text="${returnRequest.user.email}"></span></p>
+                        <p><strong>Ngày yêu cầu:</strong> <span
+                                th:text="${#dates.format(returnRequest.requestedAt, 'dd-MM-yyyy HH:mm')}"></span></p>
+                        <p><strong>Trạng thái:</strong>
+                            <span th:text="${returnRequest.requestStatus.label}"
+                                th:classappend="${returnRequest.requestStatus.name() == 'PENDING' ? 'badge bg-label-warning' : (returnRequest.requestStatus.name() == 'APPROVED' ? 'badge bg-label-success' : 'badge bg-label-danger')}">
                             </span>
-                    </p>
-                    <hr>
-                    <h5>Lý do hoàn trả:</h5>
-                    <p th:text="${returnRequest.reason}"></p>
+                        </p>
+                        <hr>
+                        <h5>Lý do hoàn trả:</h5>
+                        <p th:text="${returnRequest.reason}"></p>
 
-                    <div th:if="${returnRequest.evidenceImageUrl}">
-                        <h5>Bằng chứng:</h5>
-                        <a th:href="@{/uploads/{file}(file=${returnRequest.evidenceImageUrl})}" target="_blank">
-                            <img th:src="@{/uploads/{file}(file=${returnRequest.evidenceImageUrl})}" alt="Bằng chứng" class="img-fluid" style="max-height: 300px; border: 1px solid #ddd; border-radius: 4px; padding: 5px;">
-                        </a>
+                        <div th:if="${returnRequest.evidenceImageUrl}">
+                            <h5>Bằng chứng:</h5>
+                            <a th:href="@{/uploads/{file}(file=${returnRequest.evidenceImageUrl})}" target="_blank">
+                                <img th:src="@{/uploads/{file}(file=${returnRequest.evidenceImageUrl})}"
+                                    alt="Bằng chứng" class="img-fluid"
+                                    style="max-height: 300px; border: 1px solid #ddd; border-radius: 4px; padding: 5px;">
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <div class="col-lg-5">
-            <div class="card">
-                <div class="card-header">Xử lý Yêu cầu</div>
-                <div class="card-body">
-                    <div th:if="${returnRequest.requestStatus.name() == 'PENDING'}">
-                        <form th:action="@{/admin/returns/process}" method="POST">
-                            <input type="hidden" name="requestId" th:value="${returnRequest.id}" />
+            <div class="col-lg-5">
+                <div class="card">
+                    <div class="card-header">Xử lý Yêu cầu</div>
+                    <div class="card-body">
+                        <div th:if="${returnRequest.requestStatus.name() == 'PENDING'}">
+                            <form th:action="@{/admin/returns/process}" method="POST">
+                                <input type="hidden" name="requestId" th:value="${returnRequest.id}" />
 
-                            <div class="mb-3">
-                                <label for="adminNotes" class="form-label">Ghi chú (Lý do từ chối/Ghi chú thêm):</label>
-                                <textarea class="form-control" id="adminNotes" name="adminNotes" rows="3"></textarea>
-                            </div>
+                                <div class="mb-3">
+                                    <label for="adminNotes" class="form-label">Ghi chú (Lý do từ chối/Ghi chú
+                                        thêm):</label>
+                                    <textarea class="form-control" id="adminNotes" name="adminNotes"
+                                        rows="3"></textarea>
+                                </div>
 
-                            <p class="text-muted small">
-                                <strong>Lưu ý khi Chấp thuận:</strong> Đơn hàng sẽ bị chuyển thành 'Trả hàng-Hoàn tiền', trạng thái thanh toán thành 'Chưa thanh toán' (chờ hoàn tiền), điểm tích lũy của user sẽ bị trừ, và số lượng hàng sẽ được hoàn về kho.
+                                <p class="text-muted small">
+                                    <strong>Lưu ý khi Chấp thuận:</strong> Đơn hàng sẽ bị chuyển thành 'Trả hàng-Hoàn
+                                    tiền', trạng thái thanh toán thành 'Chưa thanh toán' (chờ hoàn tiền), điểm tích lũy
+                                    của user sẽ bị trừ, và số lượng hàng sẽ được hoàn về kho.
+                                </p>
+
+                                <div class="d-flex justify-content-between">
+                                    <button type="submit" name="action" value="reject" class="btn btn-danger">Từ
+                                        chối</button>
+                                    <button type="submit" name="action" value="approve" class="btn btn-success">Chấp
+                                        thuận</button>
+                                </div>
+                            </form>
+                        </div>
+                        <div th:unless="${returnRequest.requestStatus.name() == 'PENDING'}">
+                            <p><strong>Người xử lý:</strong> <span
+                                    th:text="${returnRequest.adminProcessor?.fullName ?: 'N/A'}"></span></p>
+                            <p><strong>Ngày xử lý:</strong> <span
+                                    th:text="${#dates.format(returnRequest.processedAt, 'dd-MM-yyyy HH:mm')}"></span>
                             </p>
-
-                            <div class="d-flex justify-content-between">
-                                <button type="submit" name="action" value="reject" class="btn btn-danger">Từ chối</button>
-                                <button type="submit" name="action" value="approve" class="btn btn-success">Chấp thuận</button>
-                            </div>
-                        </form>
-                    </div>
-                    <div th:unless="${returnRequest.requestStatus.name() == 'PENDING'}">
-                        <p><strong>Người xử lý:</strong> <span th:text="${returnRequest.adminProcessor?.fullName ?: 'N/A'}"></span></p>
-                        <p><strong>Ngày xử lý:</strong> <span th:text="${#dates.format(returnRequest.processedAt, 'dd-MM-yyyy HH:mm')}"></span></p>
-                        <p><strong>Ghi chú từ Admin:</strong></p>
-                        <p th:text="${returnRequest.adminNotes}"></p>
+                            <p><strong>Ghi chú từ Admin:</strong></p>
+                            <p th:text="${returnRequest.adminNotes}"></p>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
-</section>
+
+    </section>
 
 </body>
+
 </html>

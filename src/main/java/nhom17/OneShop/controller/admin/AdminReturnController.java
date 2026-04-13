@@ -5,7 +5,9 @@ import nhom17.OneShop.entity.User;
 import nhom17.OneShop.exception.NotFoundException;
 import nhom17.OneShop.repository.ReturnRequestRepository;
 import nhom17.OneShop.repository.UserRepository;
-import nhom17.OneShop.service.OrderService;
+import nhom17.OneShop.repository.AuditLogRepository;
+import nhom17.OneShop.entity.AuditLog;
+import nhom17.OneShop.service.returnrequest.IReturnRequestService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -24,7 +26,10 @@ public class AdminReturnController {
     private ReturnRequestRepository returnRequestRepository;
 
     @Autowired
-    private OrderService orderService;
+    private IReturnRequestService returnRequestService;
+
+    @Autowired
+    private AuditLogRepository auditLogRepository;
 
     @Autowired
     private UserRepository userRepository; // Dùng để lấy thông tin admin
@@ -42,7 +47,11 @@ public class AdminReturnController {
     public String viewReturnRequest(@PathVariable("id") Long id, Model model) {
         ReturnRequest request = returnRequestRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy yêu cầu hoàn trả"));
+        
+        List<AuditLog> auditLogs = auditLogRepository.findByTargetIdOrderByCreatedAtDesc(String.valueOf(id));
+        
         model.addAttribute("returnRequest", request);
+        model.addAttribute("auditLogs", auditLogs);
         return "admin/orders/return-detail"; // File HTML mới
     }
 
@@ -52,33 +61,29 @@ public class AdminReturnController {
             @RequestParam("requestId") Long requestId,
             @RequestParam("action") String action, // "approve" or "reject"
             @RequestParam(value = "adminNotes", required = false) String adminNotes,
-            RedirectAttributes redirectAttributes
-    ) {
-        ReturnRequest request = returnRequestRepository.findById(requestId)
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy yêu cầu"));
+            RedirectAttributes redirectAttributes) {
 
         User admin = getCurrentAdminUser();
 
-        if (action.equals("approve")) {
-            try {
-                request.approve(admin, adminNotes);
-                orderService.processAdminReturnApproval(request.getOrder().getOrderId(), admin);
-                redirectAttributes.addFlashAttribute("success", "Đã chấp thuận yêu cầu hoàn trả. Đơn hàng đã cập nhật và hoàn kho.");
-            } catch (Exception e) {
-                redirectAttributes.addFlashAttribute("error", "Lỗi khi duyệt: " + e.getMessage());
-                return "redirect:/admin/returns/" + requestId;
-            }
+        try {
+            returnRequestService.processRequest(requestId, action, adminNotes, admin);
 
-        } else if (action.equals("reject")) {
-            request.reject(admin, adminNotes);
-            redirectAttributes.addFlashAttribute("warning", "Đã từ chối yêu cầu hoàn trả.");
+            if ("approve".equalsIgnoreCase(action)) {
+                redirectAttributes.addFlashAttribute("success",
+                        "Đã chấp thuận yêu cầu hoàn trả. Đơn hàng đã cập nhật và hoàn kho.");
+            } else if ("reject".equalsIgnoreCase(action)) {
+                redirectAttributes.addFlashAttribute("warning", "Đã từ chối yêu cầu hoàn trả.");
+            }
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", "Lỗi khi xử lý: " + e.getMessage());
+            return "redirect:/admin/returns/" + requestId;
         }
 
-        returnRequestRepository.save(request);
         return "redirect:/admin/returns";
     }
 
-    // Helper để lấy admin đang đăng nhập (giống trong service/controller khác của bạn)
+    // Helper để lấy admin đang đăng nhập (giống trong service/controller khác của
+    // bạn)
     private User getCurrentAdminUser() {
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         String username = ((UserDetails) principal).getUsername();
