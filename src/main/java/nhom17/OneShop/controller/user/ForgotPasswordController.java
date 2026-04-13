@@ -1,5 +1,6 @@
 package nhom17.OneShop.controller.user;
 
+import nhom17.OneShop.entity.enums.OtpPurpose;
 import nhom17.OneShop.service.OtpService;
 import nhom17.OneShop.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -107,7 +108,7 @@ public class ForgotPasswordController {
     public String resendResetOtp(@RequestParam("email") String email,
                                  RedirectAttributes redirectAttributes) {
         try {
-            otpService.generateOtpForEmail(email, "Quên mật khẩu");
+            otpService.generateOtpForEmail(email, OtpPurpose.RESET_PASSWORD);
             redirectAttributes.addFlashAttribute("success", "Đã gửi lại mã OTP. Vui lòng kiểm tra email!");
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", "Không thể gửi lại OTP. Vui lòng thử lại!");

@@ -13,6 +13,8 @@ import nhom17.OneShop.listener.EmailNotificationListener;
 import nhom17.OneShop.repository.*;
 import nhom17.OneShop.service.CartService;
 import nhom17.OneShop.service.CheckoutService;
+import nhom17.OneShop.util.SecurityContextUtil;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -36,6 +38,7 @@ public class CheckoutServiceImpl implements CheckoutService {
     @Autowired private UserRepository userRepository;
     @Autowired private InventoryRepository inventoryRepository;
     @Autowired private VoucherRepository voucherRepository;
+    @Autowired private SecurityContextUtil securityContextUtil;
 
     @Autowired private OrderEventPublisher orderEventPublisher;
     @Autowired private ClearCartListener clearCartListener;
@@ -56,7 +59,7 @@ public class CheckoutServiceImpl implements CheckoutService {
                             ShippingMethod shippingMethod,
                             String appliedCouponCode,
                             String note) {
-        User currentUser = getCurrentUserOptional().orElseThrow(() -> new IllegalStateException("Người dùng chưa đăng nhập."));
+        User currentUser = securityContextUtil.getCurrentUserOptional().orElseThrow(() -> new IllegalStateException("Người dùng chưa đăng nhập."));
         List<CartItem> cartItems = cartService.getCartItems();
         if (cartItems.isEmpty()) {
             throw new IllegalStateException("Giỏ hàng đang trống.");
@@ -184,12 +187,13 @@ public class CheckoutServiceImpl implements CheckoutService {
         return savedOrder;
     }
 
-    private Optional<User> getCurrentUserOptional() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated() || authentication.getPrincipal().equals("anonymousUser")) {
-            return Optional.empty();
-        }
-        String username = ((UserDetails) authentication.getPrincipal()).getUsername();
-        return userRepository.findByEmail(username);
-    }
+    // Helper method
+    // private Optional<User> getCurrentUserOptional() {
+    //     Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+    //     if (authentication == null || !authentication.isAuthenticated() || authentication.getPrincipal().equals("anonymousUser")) {
+    //         return Optional.empty();
+    //     }
+    //     String username = ((UserDetails) authentication.getPrincipal()).getUsername();
+    //     return userRepository.findByEmail(username);
+    // }
 }

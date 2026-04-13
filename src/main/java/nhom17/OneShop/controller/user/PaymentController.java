@@ -19,12 +19,12 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import nhom17.OneShop.dto.adapter.IPaymentWebhookAdapter;
+import nhom17.OneShop.dto.adapter.SepayWebhookAdapter;
 
 import java.math.BigDecimal;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 @Controller
 public class PaymentController {
@@ -41,46 +41,28 @@ public class PaymentController {
     @Value("${shop.sepay.account-name}")
     private String SHOP_ACCOUNT_NAME;
 
-    // Biểu thức Regex để tìm mã đơn hàng
-    private static final Pattern ORDER_ID_PATTERN = Pattern.compile("DH(\\d+)");
-
     @PostMapping("/payment/ipn/sepay")
     @ResponseBody
     public ResponseEntity<Map<String, Object>> handleSepayWebhook(@RequestBody SepayWebhookDTO webhookData) {
-
         System.out.println("===== ĐÃ NHẬN ĐƯỢC WEBHOOK TỪ SEPAY =====");
-        System.out.println("DTO: " + (webhookData != null ? webhookData.toString() : "NULL"));
 
         try {
-            if (webhookData == null) {
-                throw new IllegalArgumentException("Webhook data is null");
-            }
-            if (webhookData.getContent() == null) {
-                throw new IllegalArgumentException("Webhook content is null");
-            }
-            if (webhookData.getTransferAmount() == null) {
-                throw new IllegalArgumentException("Webhook transferAmount is null");
+            IPaymentWebhookAdapter adapter = new SepayWebhookAdapter(webhookData);
+
+            if (!adapter.isValid()) {
+                throw new IllegalArgumentException("Webhook data is invalid or missing fields");
             }
 
-            if (!"in".equalsIgnoreCase(webhookData.getTransferType())) {
-                return ResponseEntity.ok(Map.of("success", true, "message", "Not an 'in' transaction, skipped."));
+            if (!adapter.isIncomingTransaction()) {
+                return ResponseEntity.ok(Map.of("success", true, "message", "Not an incoming transaction, skipped."));
             }
 
-            Matcher matcher = ORDER_ID_PATTERN.matcher(webhookData.getContent());
-
-            if (!matcher.find()) {
-                throw new IllegalArgumentException("Không tìm thấy mã đơn hàng (DHxxxx) trong nội dung: " + webhookData.getContent());
-            }
-
-            String orderIdString = matcher.group(1);
+            String orderIdString = adapter.extractOrderId();
             if (orderIdString == null) {
-                throw new IllegalStateException("Regex matched but order ID group was null.");
+                throw new IllegalArgumentException("Không tìm thấy mã đơn hàng hợp lệ trong nội dung thanh toán.");
             }
 
-            Long orderId = Long.parseLong(orderIdString);
-            BigDecimal amountPaid = webhookData.getTransferAmount();
-
-            orderService.processSepayPayment(orderId, amountPaid);
+            orderService.processIpnPayment(adapter);
 
             return ResponseEntity.ok(Map.of("success", true));
 

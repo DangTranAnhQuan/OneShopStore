@@ -4,6 +4,7 @@ import nhom17.OneShop.entity.TemporaryRegister;
 import nhom17.OneShop.entity.MembershipTier;
 import nhom17.OneShop.entity.Role;
 import nhom17.OneShop.entity.User;
+import nhom17.OneShop.entity.enums.OtpPurpose;
 import nhom17.OneShop.entity.enums.UserStatus;
 import nhom17.OneShop.exception.DuplicateRecordException;
 import nhom17.OneShop.exception.NotFoundException;
@@ -184,7 +185,7 @@ public class UserServiceImpl implements UserService {
 
         temporaryRegisterRepository.save(temporaryRegister);
 
-        otpService.generateOtpForEmail(signUpRequest.getEmail(), "Đăng ký");
+        otpService.generateOtpForEmail(signUpRequest.getEmail(), OtpPurpose.SIGN_UP);
 
         return null;
     }
@@ -192,7 +193,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public boolean verifyEmailOtp(String email, String otp) {
-        boolean isValid = otpService.validateOtp(email, otp, "Đăng ký");
+        boolean isValid = otpService.validateOtp(email, otp, OtpPurpose.SIGN_UP);
 
         if (!isValid) {
             return false;
@@ -226,13 +227,13 @@ public class UserServiceImpl implements UserService {
         userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Email không tồn tại trong hệ thống!"));
 
-        otpService.generateOtpForEmail(email, "Quên mật khẩu");
+        otpService.generateOtpForEmail(email, OtpPurpose.RESET_PASSWORD);
     }
 
     @Override
     @Transactional
     public boolean verifyResetPasswordOtp(String email, String otp) {
-        return otpService.validateOtp(email, otp, "Quên mật khẩu");
+        return otpService.validateOtp(email, otp, OtpPurpose.RESET_PASSWORD);
     }
 
     // ✅ PHƯƠNG THỨC QUAN TRỌNG NHẤT - ĐÃ SỬA
