@@ -1,47 +1,46 @@
 package nhom17.OneShop.service.impl;
 
 import nhom17.OneShop.entity.OTP;
+import nhom17.OneShop.entity.enums.OtpPurpose;
 import nhom17.OneShop.repository.OTPRepository;
-import nhom17.OneShop.service.EmailService;
 import nhom17.OneShop.service.OtpService;
-import org.springframework.beans.factory.annotation.Autowired;
+import nhom17.OneShop.service.otp.AbstractOtpFlow;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.Random;
+import java.util.List;
 
 @Service
 public class OtpServiceImpl implements OtpService {
 
-    @Autowired
-    private OTPRepository otpRepository;
+    private final OTPRepository otpRepository;
+    private final List<AbstractOtpFlow> otpFlows;
 
-    @Autowired
-    private EmailService emailService;
-
-    @Override
-    @Transactional
-    public String generateOtpForEmail(String email, String purpose) {
-        // Tạo mã OTP 6 số ngẫu nhiên
-        String otp = String.format("%06d", new Random().nextInt(999999));
-
-        // Lưu vào database
-        OTP otpEntity = new OTP(otp, purpose, LocalDateTime.now().plusMinutes(5), email, null);
-        otpRepository.save(otpEntity);
-
-        // Gửi email
-        emailService.sendOtpEmail(email, otp, purpose);
-
-        return otp;
+    public OtpServiceImpl(OTPRepository otpRepository, List<AbstractOtpFlow> otpFlows) {
+        this.otpRepository = otpRepository;
+        this.otpFlows = otpFlows;
     }
 
     @Override
     @Transactional
-    public boolean validateOtp(String email, String otp, String purpose) {
+    public String generateOtpForEmail(String email, OtpPurpose purpose) {
+        return resolveFlow(purpose).execute(email);
+    }
+
+    private AbstractOtpFlow resolveFlow(OtpPurpose purpose) {
+        return otpFlows.stream()
+            .filter(flow -> flow.supports(purpose))
+            .findFirst()
+            .orElseThrow(() -> new IllegalArgumentException("OtpPurpose không hợp lệ: " + purpose));
+    }
+
+    @Override
+    @Transactional
+    public boolean validateOtp(String email, String otp, OtpPurpose purpose) {
         // Tìm OTP
         OTP otpEntity = otpRepository
-            .findByCodeAndPurpose(otp, purpose)
+            .findByCodeAndPurpose(otp, purpose.getValue())
             .orElse(null);
 
         if (otpEntity == null) {
