@@ -7,4 +7,6 @@ public interface EmailService {
     void sendOtpEmail(String toEmail, String otp, OtpPurpose purpose);
 
     void sendContactEmail(User user, String subject, String message);
+
+    void sendOrderConfirmationEmail(Order order);
 }

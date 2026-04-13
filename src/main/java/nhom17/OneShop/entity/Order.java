@@ -90,27 +90,94 @@ public class Order {
         // For JPA
     }
 
-    public Order(User user,
-                 Address address,
-                 String receiverName,
-                 String receiverPhone,
-                 String receiverAddress,
-                 ShippingMethod shippingMethod,
-                 PaymentMethod paymentMethod,
-                 BigDecimal shippingFee,
-                 Voucher voucher) {
-        assignCustomer(user);
-        this.address = address;
-        this.receiverName = receiverName;
-        this.receiverPhone = receiverPhone;
-        this.receiverAddress = receiverAddress;
-        this.shippingMethod = Objects.requireNonNull(shippingMethod, "Phương thức vận chuyển không hợp lệ");
-        this.paymentMethod = Objects.requireNonNull(paymentMethod, "Phương thức thanh toán không hợp lệ");
+    private Order(Builder builder) {
+        assignCustomer(builder.user);
+        this.address = builder.address;
+        this.receiverName = builder.receiverName;
+        this.receiverPhone = builder.receiverPhone;
+        this.receiverAddress = builder.receiverAddress;
+        this.shippingMethod = Objects.requireNonNull(builder.shippingMethod, "Phương thức vận chuyển không hợp lệ");
+        this.paymentMethod = Objects.requireNonNull(builder.paymentMethod, "Phương thức thanh toán không hợp lệ");
         this.paymentStatus = PaymentStatus.UNPAID;
         this.orderStatus = OrderStatus.PENDING;
         this.orderedAt = LocalDateTime.now();
-        this.voucher = voucher;
-        applyShippingFee(shippingFee);
+        this.voucher = builder.voucher;
+        applyShippingFee(builder.shippingFee);
+        updateNote(builder.note);
+    }
+
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    public static final class Builder {
+        private User user;
+        private Address address;
+        private String receiverName;
+        private String receiverPhone;
+        private String receiverAddress;
+        private ShippingMethod shippingMethod;
+        private PaymentMethod paymentMethod;
+        private BigDecimal shippingFee;
+        private Voucher voucher;
+        private String note;
+
+        private Builder() {
+        }
+
+        public Builder user(User user) {
+            this.user = user;
+            return this;
+        }
+
+        public Builder address(Address address) {
+            this.address = address;
+            return this;
+        }
+
+        public Builder receiverName(String receiverName) {
+            this.receiverName = receiverName;
+            return this;
+        }
+
+        public Builder receiverPhone(String receiverPhone) {
+            this.receiverPhone = receiverPhone;
+            return this;
+        }
+
+        public Builder receiverAddress(String receiverAddress) {
+            this.receiverAddress = receiverAddress;
+            return this;
+        }
+
+        public Builder shippingMethod(ShippingMethod shippingMethod) {
+            this.shippingMethod = shippingMethod;
+            return this;
+        }
+
+        public Builder paymentMethod(PaymentMethod paymentMethod) {
+            this.paymentMethod = paymentMethod;
+            return this;
+        }
+
+        public Builder shippingFee(BigDecimal shippingFee) {
+            this.shippingFee = shippingFee;
+            return this;
+        }
+
+        public Builder voucher(Voucher voucher) {
+            this.voucher = voucher;
+            return this;
+        }
+
+        public Builder note(String note) {
+            this.note = note;
+            return this;
+        }
+
+        public Order build() {
+            return new Order(this);
+        }
     }
 
     public void assignCustomer(User user) {

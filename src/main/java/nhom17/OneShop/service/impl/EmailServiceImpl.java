@@ -1,6 +1,7 @@
 package nhom17.OneShop.service.impl;
 
 import jakarta.mail.internet.MimeMessage;
+import nhom17.OneShop.entity.Order;
 import nhom17.OneShop.entity.User;
 import nhom17.OneShop.entity.enums.OtpPurpose;
 import nhom17.OneShop.service.EmailService;
@@ -95,6 +96,29 @@ public class EmailServiceImpl implements EmailService {
         } catch (Exception e) {
             System.err.println("❌ Lỗi khi gửi email LIÊN HỆ: " + e.getMessage());
             throw new RuntimeException("Không thể gửi email liên hệ: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public void sendOrderConfirmationEmail(Order order) {
+        if (order == null || order.getUser() == null || order.getUser().getEmail() == null) {
+            return;
+        }
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom(fromAddress);
+            message.setTo(order.getUser().getEmail());
+            message.setSubject("Xác nhận đơn hàng #" + order.getOrderId());
+            message.setText(
+                    "Xin chào " + order.getUser().getFullName() + ",\n\n"
+                            + "Đơn hàng #" + order.getOrderId() + " của bạn đã được tạo thành công.\n"
+                            + "Tổng tiền: " + order.getTotalAmount() + "\n"
+                            + "Phương thức thanh toán: " + order.getPaymentMethod() + "\n\n"
+                            + "Cảm ơn bạn đã mua sắm tại OneShop."
+            );
+            mailSender.send(message);
+        } catch (Exception e) {
+            throw new RuntimeException("Không thể gửi email xác nhận đơn hàng.", e);
         }
     }
 }
