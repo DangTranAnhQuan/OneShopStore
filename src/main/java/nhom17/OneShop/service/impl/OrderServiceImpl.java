@@ -10,6 +10,7 @@ import nhom17.OneShop.repository.OrderRepository;
 import nhom17.OneShop.repository.OrderStatusHistoryRepository;
 import nhom17.OneShop.repository.RatingRepository;
 import nhom17.OneShop.request.OrderUpdateRequest;
+import nhom17.OneShop.dto.adapter.IPaymentWebhookAdapter;
 import nhom17.OneShop.service.CartService;
 import nhom17.OneShop.service.OrderService;
 import nhom17.OneShop.specification.OrderSpecification;
@@ -331,7 +332,20 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional
-    public void processSepayPayment(Long orderId, BigDecimal amountPaid) {
+    public void processIpnPayment(IPaymentWebhookAdapter adapter) {
+        String orderIdStr = adapter.extractOrderId();
+        if (orderIdStr == null || orderIdStr.trim().isEmpty()) {
+            throw new IllegalArgumentException("Webhook [" + adapter.getGatewayName() + "]: Order ID cannot be extracted from payload.");
+        }
+        Long orderId;
+        try {
+            orderId = Long.parseLong(orderIdStr);
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Webhook [" + adapter.getGatewayName() + "]: Invalid Order ID format: " + orderIdStr);
+        }
+
+        BigDecimal amountPaid = adapter.extractAmount();
+
         // 1. Tìm đơn hàng
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("Webhook: Không tìm thấy đơn hàng #" + orderId));
@@ -400,25 +414,4 @@ public class OrderServiceImpl implements OrderService {
             throw new RuntimeException("Lỗi khi xử lý hủy đơn hàng.", e); // Ném lại lỗi để controller biết
         }
     }
-    @Override
-    @Transactional
-    public void processAdminReturnApproval(Long orderId, User adminUser) {
-        // 1. Tìm đơn hàng
-        Order order = orderRepository.findByIdWithDetails(orderId)
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy đơn hàng #" + orderId));
-
-        OrderStatus oldStatus = order.getOrderStatus();
-
-        // 3. Ghi lại lịch sử và cập nhật điểm
-        Map<Integer, Inventory> inventoryByProduct = loadInventoriesForOrder(order);
-        order.approveReturn(inventoryByProduct);
-        OrderStatusHistory history = new OrderStatusHistory(order, oldStatus, order.getOrderStatus(), adminUser, LocalDateTime.now());
-        order.addStatusHistory(history);
-        updateLoyaltyPoints(order, oldStatus, order.getOrderStatus());
-
-        // 5. Hoàn kho và cập nhật trạng thái đơn hàng
-        inventoryRepository.saveAll(inventoryByProduct.values());
-        orderRepository.save(order);
-    }
-
 }
