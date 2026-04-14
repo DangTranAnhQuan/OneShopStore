@@ -36,8 +36,6 @@ public interface OrderService {
 
     void cancelOrderIfPendingOnline(Long orderId, User currentUser);
 
-    void processIpnPayment(IPaymentWebhookAdapter adapter);
-
     DashboardDataDTO getDashboardData(int year, int month);
 
     boolean hasCompletedPurchase(Integer userId, Integer productId);
