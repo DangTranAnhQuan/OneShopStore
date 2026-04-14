@@ -4,7 +4,6 @@ import nhom17.OneShop.entity.*;
 import nhom17.OneShop.dto.DashboardDataDTO;
 import nhom17.OneShop.entity.enums.OrderStatus;
 import nhom17.OneShop.request.OrderUpdateRequest;
-import nhom17.OneShop.dto.adapter.IPaymentWebhookAdapter;
 import org.springframework.data.domain.Page;
 
 import java.math.BigDecimal;
@@ -24,7 +23,6 @@ public interface OrderService {
     void update(Long orderId, OrderUpdateRequest request);
     void cancelOrder(Long orderId, User currentUser);
     void cancelOrderIfPendingOnline(Long orderId, User currentUser);
-    void processIpnPayment(IPaymentWebhookAdapter adapter);
 
     DashboardDataDTO getDashboardData(int year, int month);
     boolean hasCompletedPurchase(Integer userId, Integer productId);

@@ -10,7 +10,6 @@ import nhom17.OneShop.repository.OrderRepository;
 import nhom17.OneShop.repository.OrderStatusHistoryRepository;
 import nhom17.OneShop.repository.RatingRepository;
 import nhom17.OneShop.request.OrderUpdateRequest;
-import nhom17.OneShop.dto.adapter.IPaymentWebhookAdapter;
 import nhom17.OneShop.service.CartService;
 import nhom17.OneShop.service.OrderService;
 import nhom17.OneShop.specification.OrderSpecification;
@@ -328,61 +327,6 @@ public class OrderServiceImpl implements OrderService {
         // Kiểm tra xem đã đánh giá sản phẩm này bao giờ chưa
         boolean hasReviewed = ratingRepository.existsByUser_UserIdAndProduct_ProductId(userId, productId);
         return !hasReviewed;
-    }
-
-    @Override
-    @Transactional
-    public void processIpnPayment(IPaymentWebhookAdapter adapter) {
-        String orderIdStr = adapter.extractOrderId();
-        if (orderIdStr == null || orderIdStr.trim().isEmpty()) {
-            throw new IllegalArgumentException("Webhook [" + adapter.getGatewayName() + "]: Order ID cannot be extracted from payload.");
-        }
-        Long orderId;
-        try {
-            orderId = Long.parseLong(orderIdStr);
-        } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("Webhook [" + adapter.getGatewayName() + "]: Invalid Order ID format: " + orderIdStr);
-        }
-
-        BigDecimal amountPaid = adapter.extractAmount();
-
-        // 1. Tìm đơn hàng
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new NotFoundException("Webhook: Không tìm thấy đơn hàng #" + orderId));
-
-        // 2. Kiểm tra nếu đã thanh toán rồi thì bỏ qua
-        if (PaymentStatus.PAID.equals(order.getPaymentStatus())) {
-            System.out.println("Webhook: Đơn hàng #" + orderId + " đã được thanh toán trước đó. Bỏ qua.");
-            return; // Đã xử lý rồi
-        }
-
-        // 3. Kiểm tra số tiền (rất quan trọng)
-        // Dùng compareTo() cho BigDecimal
-        order.confirmPayment(amountPaid);
-
-        orderRepository.save(order);
-        System.out.println("Webhook: Đã cập nhật thanh toán thành công cho đơn hàng #" + orderId);
-
-        try {
-            User orderUser = order.getUser();
-            if (orderUser != null && orderUser.getUserId() != null) {
-                cartService.clearCartByUserId(orderUser.getUserId());
-                System.out.println("Webhook: Đã dọn giỏ hàng trực tiếp cho đơn hàng #" + orderId);
-
-                Long pendingOrderIdInSession = (Long) httpSession.getAttribute("pendingOnlineOrderId");
-                if (pendingOrderIdInSession != null && pendingOrderIdInSession.equals(orderId)) {
-                    httpSession.removeAttribute("pendingOnlineOrderId");
-                    System.out.println("Webhook: Đã xóa pendingOnlineOrderId khỏi session cho đơn hàng #" + orderId);
-                } else {
-                    System.out.println("Webhook: Không tìm thấy hoặc không khớp pendingOnlineOrderId trong session cho đơn hàng #" + orderId);
-                }
-            } else {
-                System.err.println("Webhook Warning: Không tìm thấy người dùng cho đơn hàng #" + orderId + " để dọn giỏ hàng.");
-            }
-        } catch (Exception e) {
-            System.err.println("Webhook Error: Lỗi khi dọn giỏ hàng cho đơn hàng #" + orderId + ": " + e.getMessage());
-            e.printStackTrace();
-        }
     }
     @Override
     @Transactional
