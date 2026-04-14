@@ -1,7 +1,9 @@
 package nhom17.OneShop.service.impl;
 
 import jakarta.mail.internet.MimeMessage;
+import nhom17.OneShop.entity.Order;
 import nhom17.OneShop.entity.User;
+import nhom17.OneShop.entity.enums.OtpPurpose;
 import nhom17.OneShop.service.EmailService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -10,7 +12,7 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
-@Service
+@Service("coreEmailService")
 public class EmailServiceImpl implements EmailService {
 
     @Autowired
@@ -23,13 +25,13 @@ public class EmailServiceImpl implements EmailService {
     private String fromName;
 
     @Override
-    public void sendOtpEmail(String toEmail, String otp, String purpose) {
+    public void sendOtpEmail(String toEmail, String otp, OtpPurpose purpose) {
         try {
             SimpleMailMessage message = new SimpleMailMessage();
             message.setFrom(fromAddress);
             message.setTo(toEmail);
-            
-            if (purpose.equals("Đăng ký")) {
+
+            if (purpose == OtpPurpose.SIGN_UP) {
                 message.setSubject("Xác thực tài khoản OneShop");
                 message.setText(
                     "Xin chào,\n\n" +
@@ -40,7 +42,7 @@ public class EmailServiceImpl implements EmailService {
                     "Trân trọng,\n" +
                     "OneShop Team"
                 );
-            } else if (purpose.equals("Quên mật khẩu")) {
+            } else if (purpose == OtpPurpose.RESET_PASSWORD) {
                 message.setSubject("Khôi phục mật khẩu OneShop");
                 message.setText(
                     "Xin chào,\n\n" +
@@ -94,6 +96,29 @@ public class EmailServiceImpl implements EmailService {
         } catch (Exception e) {
             System.err.println("❌ Lỗi khi gửi email LIÊN HỆ: " + e.getMessage());
             throw new RuntimeException("Không thể gửi email liên hệ: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public void sendOrderConfirmationEmail(Order order) {
+        if (order == null || order.getUser() == null || order.getUser().getEmail() == null) {
+            return;
+        }
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom(fromAddress);
+            message.setTo(order.getUser().getEmail());
+            message.setSubject("Xác nhận đơn hàng #" + order.getOrderId());
+            message.setText(
+                    "Xin chào " + order.getUser().getFullName() + ",\n\n"
+                            + "Đơn hàng #" + order.getOrderId() + " của bạn đã được tạo thành công.\n"
+                            + "Tổng tiền: " + order.getTotalAmount() + "\n"
+                            + "Phương thức thanh toán: " + order.getPaymentMethod() + "\n\n"
+                            + "Cảm ơn bạn đã mua sắm tại OneShop."
+            );
+            mailSender.send(message);
+        } catch (Exception e) {
+            throw new RuntimeException("Không thể gửi email xác nhận đơn hàng.", e);
         }
     }
 }
