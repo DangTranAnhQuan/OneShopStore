@@ -49,8 +49,4 @@ public class OrderStatusHistory {
     void attachToOrder(Order order) {
         this.order = order;
     }
-
-    void detachFromOrder() {
-        this.order = null;
-    }
 }

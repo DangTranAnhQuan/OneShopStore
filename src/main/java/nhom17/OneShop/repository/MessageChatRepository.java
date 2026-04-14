@@ -1,7 +1,6 @@
 package nhom17.OneShop.repository;
 
 import nhom17.OneShop.entity.MessageChat;
-import nhom17.OneShop.entity.enums.MessageSenderType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -14,11 +13,12 @@ public interface MessageChatRepository extends JpaRepository<MessageChat, Long> 
 
     List<MessageChat> findBySession_SessionIdOrderBySentAtAsc(String sessionId);
 
-    long countBySession_SessionIdAndSeenFalseAndSenderType(String sessionId, MessageSenderType senderType);
+    @Query("SELECT COUNT(m) FROM MessageChat m WHERE m.session.sessionId = ?1 AND m.seen = false AND (m.user IS NULL OR UPPER(m.user.role.roleName) NOT IN ('ADMIN', 'ROLE_ADMIN'))")
+    long countUnreadCustomerMessagesBySessionId(String sessionId);
 
     @Modifying
-    @Query("UPDATE MessageChat t SET t.seen = true WHERE t.session.sessionId = ?1 AND t.senderType = ?2")
-    void markAllAsReadBySessionId(String sessionId, MessageSenderType senderType);
+    @Query("UPDATE MessageChat t SET t.seen = true WHERE t.session.sessionId = ?1 AND (t.user IS NULL OR UPPER(t.user.role.roleName) NOT IN ('ADMIN', 'ROLE_ADMIN'))")
+    void markAllAsReadBySessionId(String sessionId);
 
     MessageChat findFirstBySession_SessionIdOrderBySentAtDesc(String sessionId);
 }

@@ -163,12 +163,6 @@ public class ShippingServiceImpl implements ShippingService {
         if (ShippingStatus.IN_TRANSIT.equals(shipping.getStatus()) || ShippingStatus.DELIVERED.equals(shipping.getStatus())) {
             throw new DataIntegrityViolationException("Không thể xóa đơn vận chuyển đang hoặc đã giao hàng.");
         }
-        Order ownerOrder = shipping.getOrder();
-        if (ownerOrder != null) {
-            ownerOrder.removeShipping();
-            orderRepository.save(ownerOrder);
-            return;
-        }
         shippingRepository.deleteById(id);
     }
 

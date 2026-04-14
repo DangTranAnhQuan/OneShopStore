@@ -2,6 +2,8 @@ package nhom17.OneShop.service.impl;
 
 import jakarta.persistence.criteria.JoinType;
 import nhom17.OneShop.entity.Inventory;
+import nhom17.OneShop.entity.Order;
+import nhom17.OneShop.entity.OrderDetail;
 import nhom17.OneShop.repository.InventoryRepository;
 import nhom17.OneShop.service.InventoryService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,7 +13,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+
+import java.util.HashMap;
+import java.util.Map;
 
 @Service
 public class InventoryServiceImpl implements InventoryService {
@@ -49,5 +55,39 @@ public class InventoryServiceImpl implements InventoryService {
         }
 
         return inventoryRepository.findAll(spec, pageable);
+    }
+
+    @Override
+    @Transactional
+    public void restockOrderItems(Order order) {
+        if (order == null || order.getOrderDetails() == null || order.getOrderDetails().isEmpty()) {
+            return;
+        }
+
+        Map<Integer, Integer> quantityByProduct = new HashMap<>();
+        for (OrderDetail detail : order.getOrderDetails()) {
+            if (detail == null || detail.getProduct() == null || detail.getProduct().getProductId() == null) {
+                continue;
+            }
+            int quantity = detail.getQuantity() == null ? 0 : detail.getQuantity();
+            if (quantity <= 0) {
+                continue;
+            }
+            Integer productId = detail.getProduct().getProductId();
+            quantityByProduct.merge(productId, quantity, Integer::sum);
+        }
+
+        for (Map.Entry<Integer, Integer> entry : quantityByProduct.entrySet()) {
+            Integer productId = entry.getKey();
+            Integer quantity = entry.getValue();
+            Inventory inventory = inventoryRepository.findById(productId)
+                    .orElseGet(() -> new Inventory(order.getOrderDetails().stream()
+                            .filter(d -> d.getProduct() != null && productId.equals(d.getProduct().getProductId()))
+                            .findFirst()
+                            .orElseThrow(() -> new IllegalStateException("Sản phẩm không hợp lệ cho tồn kho"))
+                            .getProduct(), 0, null));
+            inventory.increase(quantity);
+            inventoryRepository.save(inventory);
+        }
     }
 }

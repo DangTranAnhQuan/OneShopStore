@@ -97,9 +97,10 @@
                                 <select class="form-select" th:field="*{orderStatus}">
                                     <option value="PENDING">Đang xử lý</option>
                                     <option value="CONFIRMED">Đã xác nhận</option>
+                                    <option value="CANCELED">Đã hủy</option>
                                 </select>
                                 <small class="text-muted fst-italic">
-                                    Đơn đang ở trạng thái "Đang xử lý", bạn có thể giữ nguyên hoặc xác nhận đơn.
+                                    Đơn đang ở trạng thái "Đang xử lý", bạn có thể giữ nguyên, xác nhận hoặc hủy đơn.
                                 </small>
                             </th:block>
                             <th:block th:unless="${order.orderStatus != null and order.orderStatus.name() == 'PENDING'}">
@@ -116,8 +117,6 @@
                             <select class="form-select" disabled>
                                 <option value="COD" th:selected="${orderUpdateRequest.paymentMethod != null and orderUpdateRequest.paymentMethod.name() == 'COD'}">Thanh toán khi nhận hàng</option>
                                 <option value="VN_PAY" th:selected="${orderUpdateRequest.paymentMethod != null and orderUpdateRequest.paymentMethod.name() == 'VN_PAY'}">VNPay</option>
-                                <option value="MOMO" th:selected="${orderUpdateRequest.paymentMethod != null and orderUpdateRequest.paymentMethod.name() == 'MOMO'}">MoMo</option>
-                                <option value="CREDIT_CARD" th:selected="${orderUpdateRequest.paymentMethod != null and orderUpdateRequest.paymentMethod.name() == 'CREDIT_CARD'}">Thẻ tín dụng</option>
                             </select>
                             <input type="hidden" th:field="*{paymentMethod}">
                             <small class="text-muted fst-italic">Phương thức thanh toán đã được xác định khi tạo đơn.</small>

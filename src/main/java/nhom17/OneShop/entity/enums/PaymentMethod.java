@@ -4,9 +4,7 @@ import java.util.Locale;
 
 public enum PaymentMethod {
     COD("COD", "Thanh toán khi nhận hàng"),
-    VN_PAY("VN_PAY", "VNPay"),
-    MOMO("MOMO", "MoMo"),
-    CREDIT_CARD("CREDIT_CARD", "Thẻ tín dụng");
+    VN_PAY("VN_PAY", "VNPay");
 
     private final String code;
     private final String label;

@@ -12,6 +12,7 @@ import nhom17.OneShop.repository.RatingRepository;
 import nhom17.OneShop.request.OrderUpdateRequest;
 import nhom17.OneShop.dto.adapter.IPaymentWebhookAdapter;
 import nhom17.OneShop.service.CartService;
+import nhom17.OneShop.service.InventoryService;
 import nhom17.OneShop.service.OrderService;
 import nhom17.OneShop.specification.OrderSpecification;
 import nhom17.OneShop.entity.enums.OrderStatus;
@@ -28,15 +29,11 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import nhom17.OneShop.entity.Inventory;
-import nhom17.OneShop.entity.OrderDetail;
-import nhom17.OneShop.repository.InventoryRepository;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.sql.Date;
 import java.sql.Timestamp;
-import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -60,7 +57,7 @@ public class OrderServiceImpl implements OrderService {
     MembershipTierRepository membershipTierRepository;
 
     @Autowired
-    private InventoryRepository inventoryRepository;
+    private InventoryService inventoryService;
 
     @Autowired
     private UserRepository userRepository;
@@ -131,24 +128,36 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional
     public void update(Long orderId, OrderUpdateRequest request) {
-        Order order = findById(orderId);
+        OrderStatus newStatus = request.getOrderStatus();
+        boolean cancelingOrder = OrderStatus.CANCELED.equals(newStatus);
+
+        Order order = cancelingOrder
+                ? orderRepository.findByIdWithDetails(orderId)
+                    .orElseThrow(() -> new NotFoundException("Không tìm thấy đơn hàng #" + orderId))
+                : findById(orderId);
         if (order == null) {
             throw new NotFoundException("Không tìm thấy đơn hàng #" + orderId);
         }
 
         OrderStatus oldStatus = order.getOrderStatus();
-        OrderStatus newStatus = request.getOrderStatus();
         User currentUser = getCurrentUser();
 
         if (newStatus != null && !Objects.equals(oldStatus, newStatus)) {
             if (!OrderStatus.PENDING.equals(oldStatus)) {
                 throw new IllegalStateException("Chỉ có thể cập nhật trạng thái đơn khi đơn đang ở trạng thái 'Đang xử lý'.");
             }
-            if (!OrderStatus.CONFIRMED.equals(newStatus)) {
-                throw new IllegalStateException("Admin chỉ được chuyển đơn từ 'Đang xử lý' sang 'Đã xác nhận'.");
+            if (!OrderStatus.CONFIRMED.equals(newStatus) && !OrderStatus.CANCELED.equals(newStatus)) {
+                throw new IllegalStateException("Admin chỉ được chuyển đơn từ 'Đang xử lý' sang 'Đã xác nhận' hoặc 'Đã hủy'.");
             }
-            order.changeStatusWithHistory(newStatus, currentUser);
+            if (OrderStatus.CANCELED.equals(newStatus)) {
+                order.cancelByAdmin(currentUser);
+            } else {
+                order.changeStatusWithHistory(newStatus, currentUser);
+            }
             updateLoyaltyPoints(order, oldStatus, newStatus);
+            if (OrderStatus.CANCELED.equals(newStatus)) {
+                inventoryService.restockOrderItems(order);
+            }
         }
 
         order.changePaymentStatus(request.getPaymentStatus());
@@ -158,14 +167,12 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional
     public void cancelOrder(Long orderId, User currentUser) {
-        // 1. Tìm đơn hàng và kiểm tra tồn tại
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy đơn hàng #" + orderId));
 
         Order orderWithDetails = orderRepository.findByIdWithDetails(orderId).orElse(order);
-        Map<Integer, Inventory> inventoryByProduct = loadInventoriesForOrder(orderWithDetails);
-        orderWithDetails.cancelByCustomer(currentUser, inventoryByProduct);
-        inventoryRepository.saveAll(inventoryByProduct.values());
+        orderWithDetails.cancelByCustomer(currentUser);
+        inventoryService.restockOrderItems(orderWithDetails);
         orderRepository.save(orderWithDetails);
     }
 
@@ -299,17 +306,6 @@ public class OrderServiceImpl implements OrderService {
         return userRepository.findByEmail(username).orElseThrow();
     }
 
-    private Map<Integer, Inventory> loadInventoriesForOrder(Order order) {
-        Map<Integer, Inventory> inventoryByProduct = new HashMap<>();
-        for (OrderDetail detail : order.getOrderDetails()) {
-            Integer productId = detail.getProduct().getProductId();
-            Inventory inventory = inventoryRepository.findById(productId)
-                    .orElseGet(() -> new Inventory(detail.getProduct(), 0, null));
-            inventoryByProduct.put(productId, inventory);
-        }
-        return inventoryByProduct;
-    }
-
     @Override
     public boolean hasCompletedPurchase(Integer userId, Integer productId) {
         return orderRepository.hasCompletedPurchase(userId, productId);
@@ -401,9 +397,8 @@ public class OrderServiceImpl implements OrderService {
 
         try {
             Order orderWithDetails = orderRepository.findByIdWithDetails(orderId).orElse(order);
-            Map<Integer, Inventory> inventoryByProduct = loadInventoriesForOrder(orderWithDetails);
-            orderWithDetails.cancelPendingOnline(currentUser, inventoryByProduct);
-            inventoryRepository.saveAll(inventoryByProduct.values());
+            orderWithDetails.cancelPendingOnline(currentUser);
+            inventoryService.restockOrderItems(orderWithDetails);
             orderRepository.save(orderWithDetails);
             System.out.println("cancelOrderIfPendingOnline: Đã hủy thành công đơn hàng #" + orderId);
 

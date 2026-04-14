@@ -61,12 +61,13 @@ public class SecurityConfig {
                                 "/api/chat/**",
                                 "/ws/**",
                                 "/api/vouchers/available",
+                                "/error", "/error/**",
                                 "/login",
                                 "/logout"
                         ).permitAll()
                         .requestMatchers("/my-orders/**").authenticated()
                         .requestMatchers("/my-account/**").authenticated()
-                        .requestMatchers("/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/admin/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN")
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session

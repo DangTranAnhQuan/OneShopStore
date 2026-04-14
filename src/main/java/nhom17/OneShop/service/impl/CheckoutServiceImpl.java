@@ -10,12 +10,14 @@ import nhom17.OneShop.entity.enums.VoucherStatus;
 import nhom17.OneShop.event.OrderEventPublisher;
 import nhom17.OneShop.listener.ClearCartListener;
 import nhom17.OneShop.listener.EmailNotificationListener;
+import nhom17.OneShop.listener.OrderListener;
 import nhom17.OneShop.repository.*;
 import nhom17.OneShop.service.CartService;
 import nhom17.OneShop.service.CheckoutService;
 import nhom17.OneShop.util.SecurityContextUtil;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -41,8 +43,13 @@ public class CheckoutServiceImpl implements CheckoutService {
     @Autowired private SecurityContextUtil securityContextUtil;
 
     @Autowired private OrderEventPublisher orderEventPublisher;
-    @Autowired private ClearCartListener clearCartListener;
-    @Autowired private EmailNotificationListener emailNotificationListener;
+    @Autowired
+    @Qualifier("clearCartListener")
+    private OrderListener clearCartListener;
+
+    @Autowired
+    @Qualifier("emailNotificationListener")
+    private OrderListener emailNotificationListener;
 
     @PostConstruct
     public void registerOrderListeners() {

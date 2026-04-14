@@ -555,14 +555,14 @@
             }
             
             container.innerHTML = messages.map(msg => `
-                <div class="message-item ${msg.senderType.toLowerCase()}">
-                    <div class="message-bubble ${msg.senderType.toLowerCase()}">
+                <div class="message-item ${msg.senderRole.toLowerCase()}">
+                    <div class="message-bubble ${msg.senderRole.toLowerCase()}">
                         ${escapeHtml(msg.content)}
                     </div>
                 </div>
-                <div class="message-meta" style="text-align: ${msg.senderType === 'ADMIN' ? 'right' : 'left'}">
+                <div class="message-meta" style="text-align: ${msg.senderRole === 'ADMIN' ? 'right' : 'left'}">
                     <span>${formatDateTime(msg.sentAt)}</span>
-                    ${msg.senderType === 'ADMIN' ? '<i class="bi bi-check-all text-success"></i>' : ''}
+                    ${msg.senderRole === 'ADMIN' ? '<i class="bi bi-check-all text-success"></i>' : ''}
                 </div>
             `).join('');
             

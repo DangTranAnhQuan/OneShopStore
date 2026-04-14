@@ -2,13 +2,18 @@ package nhom17.OneShop.controller.admin;
 
 import nhom17.OneShop.dto.ChatMessageDTO;
 import nhom17.OneShop.dto.ConversationDTO;
-import nhom17.OneShop.entity.enums.MessageSenderType;
+import nhom17.OneShop.entity.User;
 import nhom17.OneShop.service.ChatService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
+
+import nhom17.OneShop.repository.UserRepository;
 
 import java.util.List;
 import java.util.Map;
@@ -23,6 +28,9 @@ public class AdminChatController {
 
     @Autowired
     private ChatService chatService;
+
+    @Autowired
+    private UserRepository userRepository;
 
     /**
      * Trang Admin Chat Dashboard
@@ -94,7 +102,9 @@ public class AdminChatController {
                 return ResponseEntity.badRequest().body(Map.of("error", "Invalid request"));
             }
 
-            ChatMessageDTO message = chatService.sendMessage(sessionId, content, MessageSenderType.ADMIN, null);
+            User currentAdmin = getCurrentUser();
+            Integer userId = currentAdmin != null ? currentAdmin.getUserId() : null;
+            ChatMessageDTO message = chatService.sendMessage(sessionId, content, userId);
 
             return ResponseEntity.ok(message);
 
@@ -132,5 +142,18 @@ public class AdminChatController {
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
+    }
+
+    private User getCurrentUser() {
+        try {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth != null && auth.isAuthenticated() && auth.getPrincipal() instanceof UserDetails) {
+                String username = ((UserDetails) auth.getPrincipal()).getUsername();
+                return userRepository.findByEmail(username).orElse(null);
+            }
+        } catch (Exception ignored) {
+            // ignore
+        }
+        return null;
     }
 }

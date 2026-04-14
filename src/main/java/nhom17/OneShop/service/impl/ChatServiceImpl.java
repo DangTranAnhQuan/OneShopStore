@@ -5,7 +5,6 @@ import nhom17.OneShop.dto.ConversationDTO;
 import nhom17.OneShop.entity.SessionChat;
 import nhom17.OneShop.entity.MessageChat;
 import nhom17.OneShop.entity.User;
-import nhom17.OneShop.entity.enums.MessageSenderType;
 import nhom17.OneShop.entity.enums.SessionStatus;
 import nhom17.OneShop.repository.UserRepository;
 import nhom17.OneShop.repository.SessionChatRepository;
@@ -25,29 +24,25 @@ import java.util.stream.Collectors;
 @Transactional
 public class ChatServiceImpl implements ChatService {
 
-    @Autowired
-    private SessionChatRepository sessionChatRepository;
+    private final SessionChatRepository sessionChatRepository;
+    private final MessageChatRepository messageChatRepository;
+    private final UserRepository userRepository;
 
-    @Autowired
-    private MessageChatRepository messageChatRepository;
-
-    @Autowired
-    private UserRepository userRepository;
+    public ChatServiceImpl(SessionChatRepository sessionChatRepository,
+                           MessageChatRepository messageChatRepository,
+                           UserRepository userRepository) {
+        this.sessionChatRepository = sessionChatRepository;
+        this.messageChatRepository = messageChatRepository;
+        this.userRepository = userRepository;
+    }
 
     @Override
-    public String getOrCreateSessionId(Integer userId, String customerName, String customerEmail) {
-        if (userId != null) {
-            Optional<SessionChat> existingSession = sessionChatRepository.findByUser_UserId(userId);
-            if (existingSession.isPresent()) {
-                SessionChat session = existingSession.get();
-                if (SessionStatus.CLOSED.equals(session.getStatus())) {
-                    session.reopen();
-                    sessionChatRepository.save(session);
-                }
-                return session.getSessionId();
-            }
-        } else if (customerName != null && !customerName.isBlank()) {
-            Optional<SessionChat> existingSession = sessionChatRepository.findByCustomerName(customerName);
+    public String getOrCreateSessionId(String customerName, String customerEmail) {
+        if (customerName != null && !customerName.isBlank()) {
+            Optional<SessionChat> existingSession = (customerEmail != null && !customerEmail.isBlank())
+                    ? sessionChatRepository.findByCustomerNameAndCustomerEmail(customerName, customerEmail)
+                    : sessionChatRepository.findByCustomerName(customerName);
+
             if (existingSession.isPresent()) {
                 SessionChat session = existingSession.get();
                 if (SessionStatus.CLOSED.equals(session.getStatus())) {
@@ -59,22 +54,14 @@ public class ChatServiceImpl implements ChatService {
         }
 
         String sessionId = "session_" + System.currentTimeMillis() + "_" + UUID.randomUUID().toString().substring(0, 8);
-        SessionChat session;
-
-        if (userId != null) {
-            session = userRepository.findById(userId)
-                    .map(user -> new SessionChat(sessionId, user))
-                    .orElseGet(() -> new SessionChat(sessionId, customerName, customerEmail));
-        } else {
-            session = new SessionChat(sessionId, customerName, customerEmail);
-        }
+        SessionChat session = new SessionChat(sessionId, customerName, customerEmail);
 
         sessionChatRepository.save(session);
         return sessionId;
     }
 
     @Override
-    public ChatMessageDTO sendMessage(String sessionId, String content, MessageSenderType senderType, Integer userId) {
+    public ChatMessageDTO sendMessage(String sessionId, String content, Integer userId) {
         SessionChat chatSession = sessionChatRepository.findById(sessionId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy phiên chat với ID: " + sessionId));
 
@@ -83,9 +70,9 @@ public class ChatServiceImpl implements ChatService {
             sender = userRepository.findById(userId).orElse(null);
         }
 
-        MessageChat message = new MessageChat(sender, content, senderType);
+        MessageChat message = new MessageChat(sender, content);
         chatSession.addMessage(message);
-        chatSession.markNewMessage(message.getSentAt(), MessageSenderType.CUSTOMER.equals(senderType));
+        chatSession.markNewMessage(message.getSentAt(), !isAdminUser(sender));
         sessionChatRepository.save(chatSession);
 
         return convertToMessageDTO(message);
@@ -118,7 +105,7 @@ public class ChatServiceImpl implements ChatService {
 
     @Override
     public void markConversationAsRead(String sessionId) {
-        messageChatRepository.markAllAsReadBySessionId(sessionId, MessageSenderType.CUSTOMER);
+        messageChatRepository.markAllAsReadBySessionId(sessionId);
         sessionChatRepository.findById(sessionId).ifPresent(session -> {
             session.markAllRead();
             sessionChatRepository.save(session);
@@ -145,18 +132,35 @@ public class ChatServiceImpl implements ChatService {
         dto.setMessageId(entity.getMessageId());
         dto.setSessionId(entity.getSession().getSessionId());
         dto.setContent(entity.getContent());
-        dto.setSenderType(entity.getSenderType());
+        dto.setSenderRole(resolveSenderRole(entity));
         dto.setSentAt(entity.getSentAt());
         dto.setSeen(entity.getSeen());
+        dto.setAvatarUrl(entity.getUser() != null ? entity.getUser().getAvatarUrl() : null);
 
         if (entity.getUser() != null) {
             dto.setSenderName(entity.getUser().getFullName());
-        } else if (MessageSenderType.ADMIN.equals(entity.getSenderType())) {
+        } else if (isAdminMessage(entity)) {
             dto.setSenderName("Admin OneShop");
         } else {
             dto.setSenderName(entity.getSession().getCustomerName());
         }
         return dto;
+    }
+
+    private String resolveSenderRole(MessageChat entity) {
+        return isAdminMessage(entity) ? "ADMIN" : "CUSTOMER";
+    }
+
+    private boolean isAdminMessage(MessageChat entity) {
+        return isAdminUser(entity.getUser());
+    }
+
+    private boolean isAdminUser(User user) {
+        if (user == null || user.getRole() == null || user.getRole().getRoleName() == null) {
+            return false;
+        }
+        return "ADMIN".equalsIgnoreCase(user.getRole().getRoleName())
+                || "ROLE_ADMIN".equalsIgnoreCase(user.getRole().getRoleName());
     }
 
     private ConversationDTO convertToConversationDTO(SessionChat entity) {
@@ -166,18 +170,13 @@ public class ChatServiceImpl implements ChatService {
         dto.setCustomerEmail(entity.getCustomerEmail());
         dto.setLastMessageAt(entity.getLastMessageAt());
         dto.setUnreadCount(entity.getUnreadCount());
-        dto.setStatus(entity.getStatus() == null ? null : entity.getStatus().getLabel());
+        SessionStatus status = entity.getStatus();
+        dto.setStatus(status != null ? status.getLabel() : null);
 
-        if (entity.getUser() != null) {
-            dto.setUserId(entity.getUser().getUserId());
-        }
 
-        MessageChat lastMessage = entity.getMessages().stream()
+        entity.getMessages().stream()
                 .max(Comparator.comparing(MessageChat::getSentAt, Comparator.nullsLast(Comparator.naturalOrder())))
-                .orElse(null);
-        if (lastMessage != null) {
-            dto.setLastMessage(lastMessage.getContent());
-        }
+                .ifPresent(lastMessage -> dto.setLastMessage(lastMessage.getContent()));
         return dto;
     }
 }
