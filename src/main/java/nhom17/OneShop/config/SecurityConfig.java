@@ -33,9 +33,7 @@ public class SecurityConfig {
 
     @Bean
     public AuthenticationProvider authenticationProvider() {
-        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
-        // Nói cho Spring biết dùng UserDetailsService nào
-        authProvider.setUserDetailsService(customUserDetailsService);
+        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider(customUserDetailsService);
         // Nói cho Spring biết dùng PasswordEncoder nào
         authProvider.setPasswordEncoder(passwordEncoder());
         return authProvider;

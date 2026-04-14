@@ -3,6 +3,7 @@ package nhom17.OneShop.service;
 import nhom17.OneShop.entity.*;
 import nhom17.OneShop.dto.DashboardDataDTO;
 import nhom17.OneShop.entity.enums.OrderStatus;
+import nhom17.OneShop.request.OrderRequest;
 import nhom17.OneShop.request.OrderUpdateRequest;
 import org.springframework.data.domain.Page;
 
@@ -13,6 +14,7 @@ import java.util.Map;
 public interface OrderService {
     Page<Order> findOrdersForCurrentUser(int page, int size);
     Order findOrderByIdForCurrentUser(Long orderId);
+    Order createAndSaveOrderForCheckout(User currentUser, Address shippingAddress, List<CartItem> cartItems, OrderRequest request);
 
     //    Admin
     Page<Order> findAll(String keyword, String status, String paymentMethod, String paymentStatus, String shippingMethod, int page, int size);
