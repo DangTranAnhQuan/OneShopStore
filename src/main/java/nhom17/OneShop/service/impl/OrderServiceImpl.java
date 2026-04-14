@@ -10,14 +10,19 @@ import nhom17.OneShop.repository.OrderRepository;
 import nhom17.OneShop.repository.OrderStatusHistoryRepository;
 import nhom17.OneShop.repository.RatingRepository;
 import nhom17.OneShop.request.OrderUpdateRequest;
+import nhom17.OneShop.request.OrderRequest;
 import nhom17.OneShop.dto.adapter.IPaymentWebhookAdapter;
 import nhom17.OneShop.service.CartService;
+import nhom17.OneShop.service.AddressService;
 import nhom17.OneShop.service.InventoryService;
 import nhom17.OneShop.service.OrderService;
 import nhom17.OneShop.specification.OrderSpecification;
+import nhom17.OneShop.entity.enums.DiscountType;
 import nhom17.OneShop.entity.enums.OrderStatus;
+import nhom17.OneShop.entity.enums.PaymentMethod;
 import nhom17.OneShop.entity.enums.PaymentStatus;
 import nhom17.OneShop.entity.enums.ShippingMethod;
+import nhom17.OneShop.entity.enums.VoucherStatus;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -34,6 +39,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.sql.Date;
 import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -55,6 +61,12 @@ public class OrderServiceImpl implements OrderService {
 
     @Autowired
     MembershipTierRepository membershipTierRepository;
+
+    @Autowired
+    private VoucherRepository voucherRepository;
+
+    @Autowired
+    private AddressService addressService;
 
     @Autowired
     private InventoryService inventoryService;
@@ -121,6 +133,139 @@ public class OrderServiceImpl implements OrderService {
             result.put(order.getOrderId(), distinctFees);
         }
         return result;
+    }
+
+    @Override
+    public BigDecimal calculateMembershipDiscount(User user, BigDecimal subtotal) {
+        if (user == null || user.getEmail() == null || subtotal == null || subtotal.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+
+        Optional<User> userWithTierOpt = userRepository.findByEmailWithMembership(user.getEmail());
+        if (userWithTierOpt.isEmpty() || userWithTierOpt.get().getMembershipTier() == null) {
+            return BigDecimal.ZERO;
+        }
+
+        BigDecimal percent = userWithTierOpt.get().getMembershipTier().getDiscountPercentage();
+        if (percent == null || percent.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+
+        return subtotal.multiply(percent.divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP));
+    }
+
+    @Override
+    public Voucher resolveApplicableVoucher(String couponCode, User user, BigDecimal baseAmount) {
+        if (couponCode == null || couponCode.isBlank()) {
+            return null;
+        }
+
+        Voucher voucher = voucherRepository.findByVoucherCodeAndStatus(couponCode, VoucherStatus.ACTIVE)
+                .orElseThrow(() -> new IllegalStateException("Không tìm thấy mã khuyến mãi '" + couponCode + "'."));
+
+        LocalDateTime now = LocalDateTime.now();
+        boolean isValidTime = voucher.getStartsAt().isBefore(now) && voucher.getEndsAt().isAfter(now);
+        boolean isEligibleAmount = voucher.getMinimumOrderAmount() == null
+                || baseAmount.compareTo(voucher.getMinimumOrderAmount()) >= 0;
+        if (!isValidTime || !isEligibleAmount) {
+            throw new IllegalStateException("Mã khuyến mãi '" + couponCode + "' không hợp lệ hoặc không đủ điều kiện.");
+        }
+
+        List<OrderStatus> invalidOrderStatesForUsageCount = List.of(OrderStatus.CANCELED, OrderStatus.PENDING);
+
+        Integer totalLimit = voucher.getTotalUsageLimit();
+        if (totalLimit != null && totalLimit > 0) {
+            long totalUses = orderRepository.countByVoucher_VoucherCodeAndOrderStatusNotIn(voucher.getVoucherCode(), invalidOrderStatesForUsageCount);
+            if (totalUses >= totalLimit) {
+                throw new IllegalStateException("Mã khuyến mãi '" + voucher.getVoucherCode() + "' đã hết lượt sử dụng.");
+            }
+        }
+
+        Integer userLimit = voucher.getPerUserLimit();
+        if (userLimit != null && userLimit > 0 && user != null) {
+            long userUses = orderRepository.countByUserAndVoucher_VoucherCodeAndOrderStatusNotIn(user, voucher.getVoucherCode(), invalidOrderStatesForUsageCount);
+            if (userUses >= userLimit) {
+                throw new IllegalStateException("Bạn đã hết lượt sử dụng mã khuyến mãi '" + voucher.getVoucherCode() + "'.");
+            }
+        }
+
+        return voucher;
+    }
+
+    @Override
+    public BigDecimal calculateCouponDiscount(Voucher voucher, BigDecimal baseAmount) {
+        if (voucher == null || baseAmount == null || baseAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+
+        BigDecimal discount;
+        if (DiscountType.PERCENTAGE.equals(voucher.getDiscountType())) {
+            discount = baseAmount.multiply(voucher.getValue().divide(new BigDecimal("100"), 4, RoundingMode.HALF_UP));
+            if (voucher.getMaxDiscountAmount() != null && discount.compareTo(voucher.getMaxDiscountAmount()) > 0) {
+                discount = voucher.getMaxDiscountAmount();
+            }
+        } else {
+            discount = voucher.getValue();
+        }
+
+        return discount.min(baseAmount).max(BigDecimal.ZERO);
+    }
+
+    @Override
+    @Transactional
+    public Order createAndSaveOrderForCheckout(User user,
+                                               Address shippingAddress,
+                                               List<CartItem> cartItems,
+                                               OrderRequest request) {
+        if (user == null) {
+            throw new IllegalArgumentException("Người dùng không hợp lệ.");
+        }
+        if (shippingAddress == null) {
+            throw new IllegalArgumentException("Địa chỉ giao hàng không hợp lệ.");
+        }
+        if (cartItems == null || cartItems.isEmpty()) {
+            throw new IllegalStateException("Giỏ hàng đang trống.");
+        }
+
+        BigDecimal subtotal = cartItems.stream()
+                .map(CartItem::getLineTotal)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal membershipDiscount = calculateMembershipDiscount(user, subtotal);
+        BigDecimal priceAfterMembership = subtotal.subtract(membershipDiscount).max(BigDecimal.ZERO);
+
+        BigDecimal shippingFee = request.getShippingFee() == null ? BigDecimal.ZERO : request.getShippingFee();
+        ShippingMethod shippingMethod = ShippingMethod.fromValue(request.getShippingMethod());
+        PaymentMethod paymentMethod = PaymentMethod.fromValue(request.getPaymentMethod());
+
+        Voucher appliedVoucher = resolveApplicableVoucher(request.getAppliedCouponCode(), user, priceAfterMembership);
+        BigDecimal couponDiscount = calculateCouponDiscount(appliedVoucher, priceAfterMembership);
+        BigDecimal finalTotal = priceAfterMembership.subtract(couponDiscount).add(shippingFee).max(BigDecimal.ZERO);
+
+        String fullAddress = addressService.formatFullAddress(shippingAddress);
+
+        Order order = Order.builder()
+                .user(user)
+                .address(shippingAddress)
+                .receiverName(shippingAddress.getReceiverName())
+                .receiverPhone(shippingAddress.getPhoneNumber())
+                .receiverAddress(fullAddress)
+                .shippingMethod(shippingMethod)
+                .paymentMethod(paymentMethod)
+                .shippingFee(shippingFee)
+                .voucher(appliedVoucher)
+                .note(request.getNote())
+                .build();
+
+        for (CartItem cartItem : cartItems) {
+            Product product = cartItem.getProduct();
+            int orderedQuantity = cartItem.getQuantity();
+            OrderDetail detail = new OrderDetail(product, product.getName(), product.getPrice(), orderedQuantity);
+            order.addDetail(detail);
+        }
+
+        order.applyPayableAmount(finalTotal);
+        return orderRepository.save(order);
     }
 
 

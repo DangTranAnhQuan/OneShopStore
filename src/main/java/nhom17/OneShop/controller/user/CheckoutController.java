@@ -7,12 +7,11 @@ import nhom17.OneShop.dto.ShippingOptionDTO;
 import nhom17.OneShop.entity.Address;
 import nhom17.OneShop.entity.Order;
 import nhom17.OneShop.entity.User;
-import nhom17.OneShop.entity.enums.PaymentMethod;
-import nhom17.OneShop.entity.enums.ShippingMethod;
 import nhom17.OneShop.repository.AddressRepository;
 import nhom17.OneShop.service.CheckoutService;
 import nhom17.OneShop.service.ShippingFeeService;
 import nhom17.OneShop.facade.CheckoutFacade;
+import nhom17.OneShop.request.OrderRequest;
 import nhom17.OneShop.util.SecurityContextUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -70,29 +69,24 @@ public class CheckoutController {
     }
 
     @PostMapping("/place-order")
-    public String placeOrder(@RequestParam("shipping_address") Integer addressId,
-                             @RequestParam("payment_method") String paymentMethod,
-                             @RequestParam("calculated_shipping_fee") BigDecimal shippingFee,
-                             @RequestParam("shipping_method_name") String shippingMethodName,
-                             @RequestParam(value = "notes", required = false) String note,
+    public String placeOrder(@ModelAttribute OrderRequest request,
                              RedirectAttributes redirectAttributes,
-                             HttpServletRequest request,
+                             HttpServletRequest httpRequest,
                              HttpServletResponse response) {
         try {
-            if (shippingMethodName == null || shippingMethodName.isBlank()) throw new IllegalArgumentException("Chưa chọn được phương thức vận chuyển hợp lệ.");
-            if (shippingFee == null || shippingFee.compareTo(BigDecimal.ZERO) < 0) throw new IllegalArgumentException("Phí vận chuyển không hợp lệ.");
+            if (request.getShippingMethod() == null || request.getShippingMethod().isBlank()) throw new IllegalArgumentException("Chưa chọn được phương thức vận chuyển hợp lệ.");
+            if (request.getShippingFee() == null || request.getShippingFee().compareTo(BigDecimal.ZERO) < 0) throw new IllegalArgumentException("Phí vận chuyển không hợp lệ.");
 
-            String couponCode = cookieUtil.readCookie(request, "appliedCouponCode");
-            ShippingMethod shippingMethod = ShippingMethod.fromValue(shippingMethodName);
-            PaymentMethod parsedPaymentMethod = PaymentMethod.fromValue(paymentMethod);
-            
-            Order order = checkoutService.placeOrder(addressId, parsedPaymentMethod, shippingFee, shippingMethod, couponCode, note);
+            request.setAppliedCouponCode(cookieUtil.readCookie(httpRequest, "appliedCouponCode"));
+            User currentUser = securityContextUtil.getCurrentUser();
+
+            Order order = checkoutService.placeOrder(request, currentUser);
 
             cookieUtil.deleteCookie(response, "appliedCouponCode");
             cookieUtil.deleteCookie(response, "cartDiscount");
 
-            if (PaymentMethod.COD.equals(parsedPaymentMethod)) return "redirect:/order-success?method=COD";
-            if (PaymentMethod.VN_PAY.equals(parsedPaymentMethod)) return "redirect:/thanh-toan/qr?orderId=" + order.getOrderId();
+            if ("COD".equalsIgnoreCase(request.getPaymentMethod())) return "redirect:/order-success?method=COD";
+            if ("VN_PAY".equalsIgnoreCase(request.getPaymentMethod())) return "redirect:/thanh-toan/qr?orderId=" + order.getOrderId();
 
             redirectAttributes.addFlashAttribute("error", "Phương thức thanh toán không hợp lệ.");
             return "redirect:/checkout";

@@ -1,6 +1,7 @@
 package nhom17.OneShop.service.impl;
 
 import jakarta.persistence.criteria.JoinType;
+import nhom17.OneShop.entity.CartItem;
 import nhom17.OneShop.entity.Inventory;
 import nhom17.OneShop.entity.Order;
 import nhom17.OneShop.entity.OrderDetail;
@@ -17,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -77,6 +79,7 @@ public class InventoryServiceImpl implements InventoryService {
             quantityByProduct.merge(productId, quantity, Integer::sum);
         }
 
+        List<Inventory> inventoriesToSave = new java.util.ArrayList<>();
         for (Map.Entry<Integer, Integer> entry : quantityByProduct.entrySet()) {
             Integer productId = entry.getKey();
             Integer quantity = entry.getValue();
@@ -87,7 +90,49 @@ public class InventoryServiceImpl implements InventoryService {
                             .orElseThrow(() -> new IllegalStateException("Sản phẩm không hợp lệ cho tồn kho"))
                             .getProduct(), 0, null));
             inventory.increase(quantity);
-            inventoryRepository.save(inventory);
+            inventoriesToSave.add(inventory);
+        }
+
+        if (!inventoriesToSave.isEmpty()) {
+            inventoryRepository.saveAll(inventoriesToSave);
+        }
+    }
+
+    @Override
+    @Transactional
+    public void deductStockForCartItems(List<CartItem> cartItems) {
+        if (cartItems == null || cartItems.isEmpty()) {
+            return;
+        }
+
+        Map<Integer, Integer> quantityByProduct = new HashMap<>();
+        Map<Integer, String> productNameById = new HashMap<>();
+        List<Inventory> inventoriesToSave = new java.util.ArrayList<>();
+
+        for (CartItem cartItem : cartItems) {
+            if (cartItem == null || cartItem.getProduct() == null || cartItem.getProduct().getProductId() == null) {
+                continue;
+            }
+            int quantity = cartItem.getQuantity() == null ? 0 : cartItem.getQuantity();
+            if (quantity <= 0) {
+                continue;
+            }
+            Integer productId = cartItem.getProduct().getProductId();
+            quantityByProduct.merge(productId, quantity, Integer::sum);
+            productNameById.putIfAbsent(productId, cartItem.getProduct().getName());
+        }
+
+        for (Map.Entry<Integer, Integer> entry : quantityByProduct.entrySet()) {
+            Integer productId = entry.getKey();
+            Integer orderedQuantity = entry.getValue();
+            Inventory inventory = inventoryRepository.findById(productId)
+                    .orElseThrow(() -> new RuntimeException("Hết hàng tồn kho cho sản phẩm: " + productNameById.getOrDefault(productId, productId.toString())));
+            inventory.decrease(orderedQuantity);
+            inventoriesToSave.add(inventory);
+        }
+
+        if (!inventoriesToSave.isEmpty()) {
+            inventoryRepository.saveAll(inventoriesToSave);
         }
     }
 }
