@@ -1,8 +1,7 @@
 <!DOCTYPE html>
-<html lang="vi"
-      xmlns:th="http://www.thymeleaf.org"
-      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
-      layout:decorate="~{layouts/user}">
+<html lang="vi" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+    layout:decorate="~{layouts/user}">
+
 <head>
     <title>Thanh toán VietQR</title>
     <style>
@@ -14,45 +13,51 @@
             border-radius: 10px;
             text-align: center;
         }
+
         .qr-payment-container img {
             max-width: 300px;
             height: auto;
             margin-bottom: 20px;
         }
+
         .payment-info {
             text-align: left;
             margin-bottom: 20px;
         }
+
         .payment-info p {
             font-size: 16px;
             margin-bottom: 10px;
             line-height: 1.6;
         }
+
         .payment-info strong {
             color: #000;
         }
+
         .payment-memo {
             background-color: #f4f4f4;
             padding: 15px;
             border-radius: 5px;
             font-weight: bold;
             font-size: 18px;
-            color: var(--color-primary); /* Màu đỏ hoặc màu nổi bật */
+            color: var(--color-primary);
+            /* Màu đỏ hoặc màu nổi bật */
             border: 1px dashed var(--color-primary);
         }
     </style>
 </head>
 
 <body>
-<main layout:fragment="content">
-    <div class="axil-checkout-area axil-section-gap">
-        <div class="container">
+    <main layout:fragment="content">
+        <div class="axil-checkout-area axil-section-gap">
+            <div class="container">
 
-            <div class="qr-payment-container">
-                <h4 class="title mb--20">Quét mã QR để thanh toán</h4>
-                <p>Mã QR đã bao gồm số tiền và nội dung chuyển khoản. Bạn chỉ cần quét và xác nhận.</p>
+                <div class="qr-payment-container">
+                    <h4 class="title mb--20">Quét mã QR để thanh toán</h4>
+                    <p>Mã QR đã bao gồm số tiền và nội dung chuyển khoản. Bạn chỉ cần quét và xác nhận.</p>
 
-                <img th:src="@{https://qr.sepay.vn/img(
+                    <img th:src="@{https://qr.sepay.vn/img(
                     bank=${shopBankCode},
                     acc=${shopAccountNo},
                     template='compact',
@@ -60,85 +65,90 @@
                     des=${paymentMemo}
                 )}" alt="QR Code Thanh toán" />
 
-                <div class="payment-info">
-                    <p><strong>Ngân hàng:</strong> <span th:text="${shopBankCode}"></span></p>
-                    <p><strong>Chủ tài khoản:</strong> <span th:text="${shopAccountName}"></span></p>
-                    <p><strong>Số tài khoản:</strong> <span th:text="${shopAccountNo}"></span></p>
-                    <p><strong>Số tiền:</strong> <strong style="font-size: 20px;" th:text="${#numbers.formatDecimal(order.totalAmount, 0, 'COMMA', 0, 'POINT')} + ' ₫'"></strong></p>
+                    <div class="payment-info">
+                        <p><strong>Ngân hàng:</strong> <span th:text="${shopBankCode}"></span></p>
+                        <p><strong>Chủ tài khoản:</strong> <span th:text="${shopAccountName}"></span></p>
+                        <p><strong>Số tài khoản:</strong> <span th:text="${shopAccountNo}"></span></p>
+                        <p><strong>Số tiền:</strong> <strong style="font-size: 20px;"
+                                th:text="${#numbers.formatDecimal(order.totalAmount, 0, 'COMMA', 0, 'POINT')} + ' ₫'"></strong>
+                        </p>
 
-                    <p><strong>Nội dung chuyển khoản (Bắt buộc):</strong></p>
-                    <div class="payment-memo">
-                        <span th:text="${paymentMemo}"></span>
+                        <p><strong>Nội dung chuyển khoản (Bắt buộc):</strong></p>
+                        <div class="payment-memo">
+                            <span th:text="${paymentMemo}"></span>
+                        </div>
                     </div>
+
+                    <div class="alert alert-warning">
+                        Vui lòng **giữ nguyên nội dung chuyển khoản** khi quét mã để chúng tôi có thể xác nhận đơn hàng
+                        của bạn nhanh nhất.
+                    </div>
+                    <a th:href="@{/checkout}" class="axil-btn btn-outline" style="margin-top: 15px;">
+                        Chọn phương thức thanh toán khác
+                    </a>
                 </div>
 
-                <div class="alert alert-warning">
-                    Vui lòng **giữ nguyên nội dung chuyển khoản** khi quét mã để chúng tôi có thể xác nhận đơn hàng của bạn nhanh nhất.
+                <div id="payment-success-message" class="qr-payment-container"
+                    style="display: none; text-align: center; margin-top: 20px;">
+                    <h3 class="title" style="color: var(--color-success);">Thanh toán thành công!</h3>
+                    <p>Chúng tôi đã nhận được thanh toán của bạn. Đơn hàng đang được xử lý.</p>
+                    <br />
+                    <a th:href="@{/order-details/{id}(id=${order.orderId})}" class="axil-btn btn-bg-primary">
+                        Xem chi tiết đơn hàng
+                    </a>
                 </div>
-                <a th:href="@{/checkout}" class="axil-btn btn-outline" style="margin-top: 15px;">
-                    Chọn phương thức thanh toán khác
-                </a>
-            </div>
 
-            <div id="payment-success-message" class="qr-payment-container" style="display: none; text-align: center; margin-top: 20px;">
-                <h3 class="title" style="color: var(--color-success);">Thanh toán thành công!</h3>
-                <p>Chúng tôi đã nhận được thanh toán của bạn. Đơn hàng đang được xử lý.</p>
-                <br/>
-                <a th:href="@{/my-orders/details/{id}(id=${order.orderId})}" class="axil-btn btn-bg-primary">
-                    Xem chi tiết đơn hàng
-                </a>
-            </div>
+                <script th:inline="javascript">
+                    /*<![CDATA[*/
+                    (function () {
+                        const orderId = /*[[${order.orderId}]]*/ '0';
+                        const qrContainer = document.querySelector('.qr-payment-container');
+                        const successContainer = document.getElementById('payment-success-message');
 
-            <script th:inline="javascript">
-                /*<![CDATA[*/
-                (function() {
-                    const orderId = /*[[${order.orderId}]]*/ '0';
-                    const qrContainer = document.querySelector('.qr-payment-container');
-                    const successContainer = document.getElementById('payment-success-message');
+                        if (orderId && orderId !== '0') {
+                            // Bắt đầu kiểm tra trạng thái
+                            const intervalId = setInterval(checkPaymentStatus, 3000); // Kiểm tra mỗi 3 giây
 
-                    if (orderId && orderId !== '0') {
-                        // Bắt đầu kiểm tra trạng thái
-                        const intervalId = setInterval(checkPaymentStatus, 3000); // Kiểm tra mỗi 3 giây
+                            function checkPaymentStatus() {
+                                fetch(`/api/payment/status/${orderId}`, {
+                                    method: 'GET',
+                                    headers: {
+                                        'Accept': 'application/json'
+                                    }
+                                })
+                                    .then(response => {
+                                        if (!response.ok) {
+                                            throw new Error('Network response was not ok');
+                                        }
+                                        return response.json();
+                                    })
+                                    .then(data => {
+                                        console.log('Check status:', data.payment_status);
+                                        if (data.payment_status === 'PAID') {
+                                            // Dừng kiểm tra
+                                            clearInterval(intervalId);
 
-                        function checkPaymentStatus() {
-                            fetch(`/api/payment/status/${orderId}`, {
-                                method: 'GET',
-                                headers: {
-                                    'Accept': 'application/json'
-                                }
-                            })
-                            .then(response => {
-                                if (!response.ok) {
-                                    throw new Error('Network response was not ok');
-                                }
-                                return response.json();
-                            })
-                            .then(data => {
-                                console.log('Check status:', data.payment_status);
-                                if (data.payment_status === 'Đã thanh toán') {
-                                    // Dừng kiểm tra
-                                    clearInterval(intervalId);
+                                            // Ẩn QR, hiện thông báo thành công
+                                            if (qrContainer) qrContainer.style.display = 'none';
+                                            if (successContainer) successContainer.style.display = 'block';
 
-                                    // Ẩn QR, hiện thông báo thành công
-                                    if(qrContainer) qrContainer.style.display = 'none';
-                                    if(successContainer) successContainer.style.display = 'block';
-
-                                    // Tự động chuyển hướng sau 5 giây
-                                    setTimeout(function() {
-                                        window.location.href = '/order-details/' + orderId;
-                                    }, 5000);
-                                }
-                            })
-                            .catch(err => {
-                                console.error('Lỗi khi kiểm tra trạng thái:', err);
-                            });
+                                            // Tự động chuyển hướng sau 5 giây
+                                            setTimeout(function () {
+                                                window.location.href = '/order-details/' + orderId;
+                                            }, 5000);
+                                        }
+                                    })
+                                    .catch(err => {
+                                        console.error('Lỗi khi kiểm tra trạng thái:', err);
+                                    });
+                            }
                         }
-                    }
-                })();
-                /*]]>*/
-            </script>
+                    })();
+                    /*]]>*/
+                </script>
+            </div>
         </div>
-    </div>
-</main>
+    </main>
 </body>
+
 </html>
