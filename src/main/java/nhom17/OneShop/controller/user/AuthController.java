@@ -127,7 +127,7 @@ public class AuthController {
             response.addCookie(jwtCookie);
             // 6. Logic điều hướng
             for (GrantedAuthority auth : userDetails.getAuthorities()) {
-                if ("ROLE_ADMIN".equals(auth.getAuthority())) {
+                if (isAdminAuthority(auth.getAuthority())) {
                     return "redirect:/admin/dashboard";
                 }
             }
@@ -155,5 +155,9 @@ public class AuthController {
 
         // 3. Điều hướng về trang đăng nhập
         return "redirect:/sign-in?logout";
+    }
+
+    private boolean isAdminAuthority(String authority) {
+        return "ROLE_ADMIN".equalsIgnoreCase(authority) || "ADMIN".equalsIgnoreCase(authority);
     }
 }

@@ -43,7 +43,7 @@ public class Shipping {
 
     public Shipping(String trackingCode, Order order, ShippingCarrier carrier) {
         this.trackingCode = trackingCode;
-        Objects.requireNonNull(order, "Đơn hàng không hợp lệ").assignShipping(this);
+        this.order = Objects.requireNonNull(order, "Đơn hàng không hợp lệ");
         this.carrier = Objects.requireNonNull(carrier, "Nhà vận chuyển không hợp lệ");
         this.status = ShippingStatus.CREATED;
         this.shippedAt = LocalDateTime.now();
@@ -63,11 +63,4 @@ public class Shipping {
         this.carrier = Objects.requireNonNull(carrier, "Nhà vận chuyển không hợp lệ");
     }
 
-    void attachToOrder(Order order) {
-        this.order = order;
-    }
-
-    void detachFromOrder() {
-        this.order = null;
-    }
 }

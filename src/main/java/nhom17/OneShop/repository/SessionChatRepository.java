@@ -15,7 +15,7 @@ public interface SessionChatRepository extends JpaRepository<SessionChat, String
 
     List<SessionChat> findByUnreadCountGreaterThanOrderByLastMessageAtDesc(Integer unreadCount);
 
-    Optional<SessionChat> findByUser_UserId(Integer userId);
     Optional<SessionChat> findByCustomerName(String customerName);
+    Optional<SessionChat> findByCustomerNameAndCustomerEmail(String customerName, String customerEmail);
     long countByStatus(SessionStatus status);
 }

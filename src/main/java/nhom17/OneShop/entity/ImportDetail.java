@@ -22,9 +22,6 @@ public class ImportDetail {
     @Column(name = "ImportPrice")
     private BigDecimal importPrice;
 
-    @Transient
-    private BigDecimal totalPrice;
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ImportId", nullable = false)
     private Import importReceipt;
@@ -53,14 +50,14 @@ public class ImportDetail {
             throw new IllegalArgumentException("Số lượng phải lớn hơn hoặc bằng 1");
         }
         this.quantity = quantity;
-        recalculateTotalPrice();
     }
 
+    @Transient
     public BigDecimal getTotalPrice() {
-        if (totalPrice == null) {
-            recalculateTotalPrice();
+        if (importPrice == null || quantity == null) {
+            return BigDecimal.ZERO;
         }
-        return totalPrice;
+        return importPrice.multiply(BigDecimal.valueOf(quantity));
     }
 
     private void setImportPriceInternal(BigDecimal importPrice) {
@@ -68,13 +65,5 @@ public class ImportDetail {
             throw new IllegalArgumentException("Giá nhập phải lớn hơn hoặc bằng 0");
         }
         this.importPrice = importPrice;
-    }
-
-    private void recalculateTotalPrice() {
-        if (importPrice == null || quantity == null) {
-            this.totalPrice = BigDecimal.ZERO;
-            return;
-        }
-        this.totalPrice = importPrice.multiply(BigDecimal.valueOf(quantity));
     }
 }

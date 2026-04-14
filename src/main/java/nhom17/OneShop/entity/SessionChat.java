@@ -18,10 +18,6 @@ public class SessionChat {
     @Column(name = "SessionId", length = 100)
     private String sessionId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "UserId", nullable = true)
-    private User user;
-
     @Column(name = "CustomerName", length = 150)
     private String customerName;
 
@@ -48,13 +44,6 @@ public class SessionChat {
         // For JPA
     }
 
-    public SessionChat(String sessionId, User user) {
-        this.sessionId = sessionId;
-        this.user = Objects.requireNonNull(user, "Người dùng không hợp lệ");
-        this.customerName = user.getFullName();
-        this.customerEmail = user.getEmail();
-        markStarted();
-    }
 
     public SessionChat(String sessionId, String customerName, String customerEmail) {
         this.sessionId = sessionId;

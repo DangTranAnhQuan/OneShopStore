@@ -10,13 +10,19 @@ import nhom17.OneShop.repository.OrderRepository;
 import nhom17.OneShop.repository.OrderStatusHistoryRepository;
 import nhom17.OneShop.repository.RatingRepository;
 import nhom17.OneShop.request.OrderUpdateRequest;
+import nhom17.OneShop.request.OrderRequest;
 import nhom17.OneShop.dto.adapter.IPaymentWebhookAdapter;
 import nhom17.OneShop.service.CartService;
+import nhom17.OneShop.service.AddressService;
+import nhom17.OneShop.service.InventoryService;
 import nhom17.OneShop.service.OrderService;
 import nhom17.OneShop.specification.OrderSpecification;
+import nhom17.OneShop.entity.enums.DiscountType;
 import nhom17.OneShop.entity.enums.OrderStatus;
+import nhom17.OneShop.entity.enums.PaymentMethod;
 import nhom17.OneShop.entity.enums.PaymentStatus;
 import nhom17.OneShop.entity.enums.ShippingMethod;
+import nhom17.OneShop.entity.enums.VoucherStatus;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -28,9 +34,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import nhom17.OneShop.entity.Inventory;
-import nhom17.OneShop.entity.OrderDetail;
-import nhom17.OneShop.repository.InventoryRepository;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -60,7 +63,13 @@ public class OrderServiceImpl implements OrderService {
     MembershipTierRepository membershipTierRepository;
 
     @Autowired
-    private InventoryRepository inventoryRepository;
+    private VoucherRepository voucherRepository;
+
+    @Autowired
+    private AddressService addressService;
+
+    @Autowired
+    private InventoryService inventoryService;
 
     @Autowired
     private UserRepository userRepository;
@@ -126,29 +135,174 @@ public class OrderServiceImpl implements OrderService {
         return result;
     }
 
+    @Override
+    public BigDecimal calculateMembershipDiscount(User user, BigDecimal subtotal) {
+        if (user == null || user.getEmail() == null || subtotal == null || subtotal.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+
+        Optional<User> userWithTierOpt = userRepository.findByEmailWithMembership(user.getEmail());
+        if (userWithTierOpt.isEmpty() || userWithTierOpt.get().getMembershipTier() == null) {
+            return BigDecimal.ZERO;
+        }
+
+        BigDecimal percent = userWithTierOpt.get().getMembershipTier().getDiscountPercentage();
+        if (percent == null || percent.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+
+        return subtotal.multiply(percent.divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP));
+    }
+
+    @Override
+    public Voucher resolveApplicableVoucher(String couponCode, User user, BigDecimal baseAmount) {
+        if (couponCode == null || couponCode.isBlank()) {
+            return null;
+        }
+
+        Voucher voucher = voucherRepository.findByVoucherCodeAndStatus(couponCode, VoucherStatus.ACTIVE)
+                .orElseThrow(() -> new IllegalStateException("Không tìm thấy mã khuyến mãi '" + couponCode + "'."));
+
+        LocalDateTime now = LocalDateTime.now();
+        boolean isValidTime = voucher.getStartsAt().isBefore(now) && voucher.getEndsAt().isAfter(now);
+        boolean isEligibleAmount = voucher.getMinimumOrderAmount() == null
+                || baseAmount.compareTo(voucher.getMinimumOrderAmount()) >= 0;
+        if (!isValidTime || !isEligibleAmount) {
+            throw new IllegalStateException("Mã khuyến mãi '" + couponCode + "' không hợp lệ hoặc không đủ điều kiện.");
+        }
+
+        List<OrderStatus> invalidOrderStatesForUsageCount = List.of(OrderStatus.CANCELED, OrderStatus.PENDING);
+
+        Integer totalLimit = voucher.getTotalUsageLimit();
+        if (totalLimit != null && totalLimit > 0) {
+            long totalUses = orderRepository.countByVoucher_VoucherCodeAndOrderStatusNotIn(voucher.getVoucherCode(), invalidOrderStatesForUsageCount);
+            if (totalUses >= totalLimit) {
+                throw new IllegalStateException("Mã khuyến mãi '" + voucher.getVoucherCode() + "' đã hết lượt sử dụng.");
+            }
+        }
+
+        Integer userLimit = voucher.getPerUserLimit();
+        if (userLimit != null && userLimit > 0 && user != null) {
+            long userUses = orderRepository.countByUserAndVoucher_VoucherCodeAndOrderStatusNotIn(user, voucher.getVoucherCode(), invalidOrderStatesForUsageCount);
+            if (userUses >= userLimit) {
+                throw new IllegalStateException("Bạn đã hết lượt sử dụng mã khuyến mãi '" + voucher.getVoucherCode() + "'.");
+            }
+        }
+
+        return voucher;
+    }
+
+    @Override
+    public BigDecimal calculateCouponDiscount(Voucher voucher, BigDecimal baseAmount) {
+        if (voucher == null || baseAmount == null || baseAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+
+        BigDecimal discount;
+        if (DiscountType.PERCENTAGE.equals(voucher.getDiscountType())) {
+            discount = baseAmount.multiply(voucher.getValue().divide(new BigDecimal("100"), 4, RoundingMode.HALF_UP));
+            if (voucher.getMaxDiscountAmount() != null && discount.compareTo(voucher.getMaxDiscountAmount()) > 0) {
+                discount = voucher.getMaxDiscountAmount();
+            }
+        } else {
+            discount = voucher.getValue();
+        }
+
+        return discount.min(baseAmount).max(BigDecimal.ZERO);
+    }
+
+    @Override
+    @Transactional
+    public Order createAndSaveOrderForCheckout(User user,
+                                               Address shippingAddress,
+                                               List<CartItem> cartItems,
+                                               OrderRequest request) {
+        if (user == null) {
+            throw new IllegalArgumentException("Người dùng không hợp lệ.");
+        }
+        if (shippingAddress == null) {
+            throw new IllegalArgumentException("Địa chỉ giao hàng không hợp lệ.");
+        }
+        if (cartItems == null || cartItems.isEmpty()) {
+            throw new IllegalStateException("Giỏ hàng đang trống.");
+        }
+
+        BigDecimal subtotal = cartItems.stream()
+                .map(CartItem::getLineTotal)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal membershipDiscount = calculateMembershipDiscount(user, subtotal);
+        BigDecimal priceAfterMembership = subtotal.subtract(membershipDiscount).max(BigDecimal.ZERO);
+
+        BigDecimal shippingFee = request.getShippingFee() == null ? BigDecimal.ZERO : request.getShippingFee();
+        ShippingMethod shippingMethod = ShippingMethod.fromValue(request.getShippingMethod());
+        PaymentMethod paymentMethod = PaymentMethod.fromValue(request.getPaymentMethod());
+
+        Voucher appliedVoucher = resolveApplicableVoucher(request.getAppliedCouponCode(), user, priceAfterMembership);
+        BigDecimal couponDiscount = calculateCouponDiscount(appliedVoucher, priceAfterMembership);
+        BigDecimal finalTotal = priceAfterMembership.subtract(couponDiscount).add(shippingFee).max(BigDecimal.ZERO);
+
+        String fullAddress = addressService.formatFullAddress(shippingAddress);
+
+        Order order = Order.builder()
+                .user(user)
+                .address(shippingAddress)
+                .receiverName(shippingAddress.getReceiverName())
+                .receiverPhone(shippingAddress.getPhoneNumber())
+                .receiverAddress(fullAddress)
+                .shippingMethod(shippingMethod)
+                .paymentMethod(paymentMethod)
+                .shippingFee(shippingFee)
+                .voucher(appliedVoucher)
+                .note(request.getNote())
+                .build();
+
+        for (CartItem cartItem : cartItems) {
+            Product product = cartItem.getProduct();
+            int orderedQuantity = cartItem.getQuantity();
+            OrderDetail detail = new OrderDetail(product, product.getName(), product.getPrice(), orderedQuantity);
+            order.addDetail(detail);
+        }
+
+        order.applyPayableAmount(finalTotal);
+        return orderRepository.save(order);
+    }
+
 
 
     @Override
     @Transactional
     public void update(Long orderId, OrderUpdateRequest request) {
-        Order order = findById(orderId);
+        OrderStatus newStatus = request.getOrderStatus();
+        boolean cancelingOrder = OrderStatus.CANCELED.equals(newStatus);
+
+        Order order = cancelingOrder
+                ? orderRepository.findByIdWithDetails(orderId)
+                    .orElseThrow(() -> new NotFoundException("Không tìm thấy đơn hàng #" + orderId))
+                : findById(orderId);
         if (order == null) {
             throw new NotFoundException("Không tìm thấy đơn hàng #" + orderId);
         }
 
         OrderStatus oldStatus = order.getOrderStatus();
-        OrderStatus newStatus = request.getOrderStatus();
         User currentUser = getCurrentUser();
 
         if (newStatus != null && !Objects.equals(oldStatus, newStatus)) {
             if (!OrderStatus.PENDING.equals(oldStatus)) {
                 throw new IllegalStateException("Chỉ có thể cập nhật trạng thái đơn khi đơn đang ở trạng thái 'Đang xử lý'.");
             }
-            if (!OrderStatus.CONFIRMED.equals(newStatus)) {
-                throw new IllegalStateException("Admin chỉ được chuyển đơn từ 'Đang xử lý' sang 'Đã xác nhận'.");
+            if (!OrderStatus.CONFIRMED.equals(newStatus) && !OrderStatus.CANCELED.equals(newStatus)) {
+                throw new IllegalStateException("Admin chỉ được chuyển đơn từ 'Đang xử lý' sang 'Đã xác nhận' hoặc 'Đã hủy'.");
             }
-            order.changeStatusWithHistory(newStatus, currentUser);
+            if (OrderStatus.CANCELED.equals(newStatus)) {
+                order.cancelByAdmin(currentUser);
+            } else {
+                order.changeStatusWithHistory(newStatus, currentUser);
+            }
             updateLoyaltyPoints(order, oldStatus, newStatus);
+            if (OrderStatus.CANCELED.equals(newStatus)) {
+                inventoryService.restockOrderItems(order);
+            }
         }
 
         order.changePaymentStatus(request.getPaymentStatus());
@@ -158,14 +312,12 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional
     public void cancelOrder(Long orderId, User currentUser) {
-        // 1. Tìm đơn hàng và kiểm tra tồn tại
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy đơn hàng #" + orderId));
 
         Order orderWithDetails = orderRepository.findByIdWithDetails(orderId).orElse(order);
-        Map<Integer, Inventory> inventoryByProduct = loadInventoriesForOrder(orderWithDetails);
-        orderWithDetails.cancelByCustomer(currentUser, inventoryByProduct);
-        inventoryRepository.saveAll(inventoryByProduct.values());
+        orderWithDetails.cancelByCustomer(currentUser);
+        inventoryService.restockOrderItems(orderWithDetails);
         orderRepository.save(orderWithDetails);
     }
 
@@ -299,17 +451,6 @@ public class OrderServiceImpl implements OrderService {
         return userRepository.findByEmail(username).orElseThrow();
     }
 
-    private Map<Integer, Inventory> loadInventoriesForOrder(Order order) {
-        Map<Integer, Inventory> inventoryByProduct = new HashMap<>();
-        for (OrderDetail detail : order.getOrderDetails()) {
-            Integer productId = detail.getProduct().getProductId();
-            Inventory inventory = inventoryRepository.findById(productId)
-                    .orElseGet(() -> new Inventory(detail.getProduct(), 0, null));
-            inventoryByProduct.put(productId, inventory);
-        }
-        return inventoryByProduct;
-    }
-
     @Override
     public boolean hasCompletedPurchase(Integer userId, Integer productId) {
         return orderRepository.hasCompletedPurchase(userId, productId);
@@ -401,9 +542,8 @@ public class OrderServiceImpl implements OrderService {
 
         try {
             Order orderWithDetails = orderRepository.findByIdWithDetails(orderId).orElse(order);
-            Map<Integer, Inventory> inventoryByProduct = loadInventoriesForOrder(orderWithDetails);
-            orderWithDetails.cancelPendingOnline(currentUser, inventoryByProduct);
-            inventoryRepository.saveAll(inventoryByProduct.values());
+            orderWithDetails.cancelPendingOnline(currentUser);
+            inventoryService.restockOrderItems(orderWithDetails);
             orderRepository.save(orderWithDetails);
             System.out.println("cancelOrderIfPendingOnline: Đã hủy thành công đơn hàng #" + orderId);
 

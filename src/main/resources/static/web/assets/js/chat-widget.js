@@ -298,7 +298,7 @@
            // Hiển thị tin nhắn ngay
            const tempMessage = {
 			  content: message,
-			  senderType: 'CUSTOMER',
+			  senderRole: 'CUSTOMER',
 			  sentAt: new Date().toISOString(),
 			  senderName: 'Bạn'
            };
@@ -387,7 +387,7 @@
 
 	function displayMessage(message, shouldScroll = true) {
 		const chatBody = document.getElementById('chatBody');
-		const isCustomer = message.senderType === 'CUSTOMER';
+		const isCustomer = message.senderRole === 'CUSTOMER';
 
 		const messageId = `msg-${message.messageId || Date.now()}`;
 		if (document.getElementById(messageId)){
@@ -504,7 +504,7 @@
 	                displayMessage(msg, true);
 	                
 	                // Nếu là tin từ admin, play sound (optional)
-					                if (msg.senderType === 'ADMIN') {
+								if (msg.senderRole === 'ADMIN') {
 	                    playNotificationSound();
 	                }
 	            });

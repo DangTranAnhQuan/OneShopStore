@@ -24,7 +24,6 @@ public interface OrderRepository extends JpaRepository<Order, Long>, JpaSpecific
             "LEFT JOIN FETCH o.orderDetails od " +
             "LEFT JOIN FETCH od.product " +
             "LEFT JOIN FETCH o.voucher " +
-            "LEFT JOIN FETCH o.shipping " +
             "WHERE o.orderId = :orderId")
     Optional<Order> findByIdWithDetails(@Param("orderId") Long orderId);
 

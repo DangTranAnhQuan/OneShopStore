@@ -26,9 +26,6 @@ public class Import {
     @JoinColumn(name = "SupplierId")
     private Supplier supplier;
 
-    @Transient
-    private BigDecimal totalAmount;
-
     @OneToMany(mappedBy = "importReceipt", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
     private List<ImportDetail> importDetails = new ArrayList<>();
 
@@ -48,23 +45,18 @@ public class Import {
         Objects.requireNonNull(detail, "Chi tiết phiếu nhập không hợp lệ");
         detail.attachToImport(this);
         this.importDetails.add(detail);
-        recalculateTotalAmount();
     }
 
     public void clearDetails() {
         this.importDetails.clear();
-        recalculateTotalAmount();
     }
 
+    @Transient
     public BigDecimal getTotalAmount() {
-        if (totalAmount == null) {
-            recalculateTotalAmount();
+        if (importDetails == null || importDetails.isEmpty()) {
+            return BigDecimal.ZERO;
         }
-        return totalAmount;
-    }
-
-    private void recalculateTotalAmount() {
-        this.totalAmount = importDetails.stream()
+        return importDetails.stream()
                 .map(ImportDetail::getTotalPrice)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }

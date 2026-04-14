@@ -3,7 +3,6 @@ package nhom17.OneShop.dto;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import nhom17.OneShop.entity.enums.MessageSenderType;
 
 import java.time.LocalDateTime;
 
@@ -19,7 +18,7 @@ public class ChatMessageDTO {
     private Long messageId;
     private String sessionId;
     private String content;
-    private MessageSenderType senderType;
+    private String senderRole;
     private LocalDateTime sentAt;
     private Boolean seen;
 

@@ -12,7 +12,6 @@ import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -82,9 +81,6 @@ public class Order {
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
     private List<OrderStatusHistory> statusHistories = new ArrayList<>();
-
-    @OneToOne(mappedBy = "order", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
-    private Shipping shipping;
 
     public Order() {
         // For JPA
@@ -203,27 +199,6 @@ public class Order {
         this.statusHistories.add(history);
     }
 
-    public void assignShipping(Shipping shipping) {
-        if (Objects.equals(this.shipping, shipping)) {
-            return;
-        }
-        if (this.shipping != null) {
-            this.shipping.detachFromOrder();
-        }
-        this.shipping = shipping;
-        if (shipping != null) {
-            shipping.attachToOrder(this);
-        }
-    }
-
-    public void removeShipping() {
-        if (this.shipping == null) {
-            return;
-        }
-        Shipping detached = this.shipping;
-        this.shipping = null;
-        detached.detachFromOrder();
-    }
 
     public void applyShippingFee(BigDecimal fee) {
         this.shippingFee = Optional.ofNullable(fee).orElse(BigDecimal.ZERO);
@@ -266,27 +241,28 @@ public class Order {
         }
     }
 
-    public void cancelByCustomer(User currentUser, Map<Integer, Inventory> inventoryByProduct) {
+    public void cancelByCustomer(User currentUser) {
         requireOwnership(currentUser);
         ensureStatus(OrderStatus.PENDING, "Chỉ có thể hủy đơn hàng khi ở trạng thái 'Đang xử lý'.");
-        restockItems(inventoryByProduct);
         this.orderStatus = OrderStatus.CANCELED;
     }
 
-    public void cancelPendingOnline(User currentUser, Map<Integer, Inventory> inventoryByProduct) {
+    public void cancelPendingOnline(User currentUser) {
         requireOwnership(currentUser);
         if (!PaymentMethod.VN_PAY.equals(this.paymentMethod)
                 || !PaymentStatus.UNPAID.equals(this.paymentStatus)
                 || !OrderStatus.PENDING.equals(this.orderStatus)) {
             throw new IllegalStateException("Đơn hàng không phải online chờ thanh toán để hủy");
         }
-        restockItems(inventoryByProduct);
         this.orderStatus = OrderStatus.CANCELED;
     }
 
-    public void approveReturn(Map<Integer, Inventory> inventoryByProduct) {
+    public void cancelByAdmin(User admin) {
+        changeStatusWithHistory(OrderStatus.CANCELED, admin);
+    }
+
+    public void approveReturn() {
         ensureStatus(OrderStatus.DELIVERED, "Chỉ có thể duyệt hoàn trả cho đơn hàng 'Đã giao'.");
-        restockItems(inventoryByProduct);
         this.orderStatus = OrderStatus.RETURNED;
         this.paymentStatus = PaymentStatus.UNPAID;
     }
@@ -350,15 +326,6 @@ public class Order {
         this.note = note.trim();
     }
 
-    private void restockItems(Map<Integer, Inventory> inventoryByProduct) {
-        for (OrderDetail detail : orderDetails) {
-            Inventory inventory = inventoryByProduct.get(detail.getProduct().getProductId());
-            if (inventory == null) {
-                throw new IllegalStateException("Không tìm thấy tồn kho cho sản phẩm " + detail.getProduct().getProductId());
-            }
-            inventory.increase(detail.getQuantity());
-        }
-    }
 
     private void ensureStatus(OrderStatus expectedStatus, String messageIfNotMatch) {
         if (!Objects.equals(expectedStatus, this.orderStatus)) {

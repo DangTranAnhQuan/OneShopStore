@@ -23,6 +23,5 @@ public class ConversationDTO {
     private Integer unreadCount;
     private String status;
 
-    private Integer userId;
     private String avatarUrl;
 }

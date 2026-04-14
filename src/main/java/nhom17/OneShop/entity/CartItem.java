@@ -19,9 +19,6 @@ public class CartItem {
     @Column(name = "Quantity")
     private Integer quantity;
 
-    @Transient
-    private BigDecimal lineTotal;
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "CartId", nullable = false)
     private Cart cart;
@@ -57,11 +54,12 @@ public class CartItem {
         updateQuantityInternal(newQuantity, stockQuantity);
     }
 
+    @Transient
     public BigDecimal getLineTotal() {
-        if (lineTotal == null) {
-            recalculateLineTotal();
+        if (product == null || product.getPrice() == null || quantity == null) {
+            return BigDecimal.ZERO;
         }
-        return lineTotal;
+        return product.getPrice().multiply(BigDecimal.valueOf(quantity));
     }
 
     private void updateQuantityInternal(int newQuantity, int stockQuantity) {
@@ -72,14 +70,5 @@ public class CartItem {
             throw new IllegalStateException("Không đủ số lượng tồn kho cho sản phẩm");
         }
         this.quantity = newQuantity;
-        recalculateLineTotal();
-    }
-
-    private void recalculateLineTotal() {
-        if (product == null || product.getPrice() == null || quantity == null) {
-            this.lineTotal = BigDecimal.ZERO;
-            return;
-        }
-        this.lineTotal = product.getPrice().multiply(BigDecimal.valueOf(quantity));
     }
 }

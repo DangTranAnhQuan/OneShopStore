@@ -25,7 +25,7 @@ public class CustomUserDetailsService implements UserDetailsService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("Không tìm thấy người dùng với email: " + email));
 
-        String roleName = user.getRole().getRoleName().toUpperCase();
+        String roleName = normalizeRoleName(user.getRole().getRoleName());
 
         List<GrantedAuthority> authorities = new ArrayList<>();
         authorities.add(new SimpleGrantedAuthority("ROLE_" + roleName));
@@ -41,5 +41,17 @@ public class CustomUserDetailsService implements UserDetailsService {
                 .credentialsExpired(false)
                 .disabled(!isEnabled)
                 .build();
+    }
+
+    private String normalizeRoleName(String roleName) {
+        if (roleName == null) {
+            return "";
+        }
+
+        String normalized = roleName.trim().toUpperCase();
+        if (normalized.startsWith("ROLE_")) {
+            normalized = normalized.substring(5);
+        }
+        return normalized;
     }
 }

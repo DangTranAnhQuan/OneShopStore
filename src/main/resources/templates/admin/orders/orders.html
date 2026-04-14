@@ -47,8 +47,6 @@
                         <option value="">Tất cả</option>
                         <option value="COD" th:selected="${paymentMethod == 'COD'}">COD</option>
                         <option value="VN_PAY" th:selected="${paymentMethod == 'VN_PAY'}">VNPay</option>
-                        <option value="MOMO" th:selected="${paymentMethod == 'MOMO'}">MoMo</option>
-                        <option value="CREDIT_CARD" th:selected="${paymentMethod == 'CREDIT_CARD'}">Thẻ tín dụng</option>
                     </select>
                 </div>
                 <div class="col-md-2">
@@ -93,12 +91,12 @@
                     </tr>
                     </thead>
                     <tbody>
-                    <tr th:if="${!orderPage.empty}" th:each="order : ${orderPage.content}">
+                    <tr th:if="${!orderPage.empty}" th:each="order : ${orderPage.content}" th:with="trackingCode=${shippingTrackingCodeByOrderId[order.orderId]}">
                         <td th:text="${'#' + order.orderId}" class="fw-semibold"></td>
                         <td th:text="${order.receiverName}"></td>
                         <td>
-                            <span th:if="${order.shipping != null}" th:text="${order.shipping.trackingCode}"></span>
-                            <span th:unless="${order.shipping != null}" class="text-muted">Chưa có</span>
+                            <span th:if="${trackingCode != null}" th:text="${trackingCode}"></span>
+                            <span th:unless="${trackingCode != null}" class="text-muted">Chưa có</span>
                         </td>
                         <td th:text="${#numbers.formatDecimal(order.totalAmount, 0, 'COMMA', 0, 'POINT')} + ' ₫'"></td>
                         <td>
@@ -121,7 +119,7 @@
                                class="btn btn-sm btn-outline-secondary" title="Xem chi tiết đơn hàng">
                                 <i class="bx bx-show"></i>
                             </a>
-                            <button th:if="${order.shipping == null AND order.orderStatus.name() != 'PENDING' AND order.orderStatus.name() != 'CANCELED'}" type="button"
+                            <button th:if="${trackingCode == null AND order.orderStatus.name() != 'PENDING' AND order.orderStatus.name() != 'CANCELED'}" type="button"
                                     class="btn btn-sm btn-outline-primary create-shipping-btn"
                                     data-bs-toggle="modal" data-bs-target="#createShippingModal"
                                     th:data-order-id="${order.orderId}"
@@ -129,8 +127,8 @@
                                     title="Tạo đơn vận chuyển">
                                 <i class="bx bxs-truck"></i>
                             </button>
-                            <a th:if="${order.shipping != null}"
-                               th:href="@{/admin/shipping(filterKeyword=${order.shipping.trackingCode})}"
+                            <a th:if="${trackingCode != null}"
+                               th:href="@{/admin/shipping(filterKeyword=${trackingCode})}"
                                class="btn btn-sm btn-outline-info" title="Xem đơn vận chuyển">
                                 <i class="bx bx-search-alt"></i>
                             </a>

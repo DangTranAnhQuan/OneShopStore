@@ -2,7 +2,6 @@ package nhom17.OneShop.controller;
 
 import nhom17.OneShop.dto.ChatMessageDTO;
 import nhom17.OneShop.entity.User;
-import nhom17.OneShop.entity.enums.MessageSenderType;
 import nhom17.OneShop.repository.UserRepository;
 import nhom17.OneShop.service.ChatService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,12 +28,10 @@ public class ChatController {
     @PostMapping("/init")
     public ResponseEntity<?> initSession(@RequestBody(required = false) Map<String, String> request) {
         try {
-            User currentUser = getCurrentUser();
             String customerName = request != null ? request.get("customerName") : null;
             String customerEmail = request != null ? request.get("customerEmail") : null;
-            Integer userId = currentUser != null ? currentUser.getUserId() : null;
 
-            String sessionId = chatService.getOrCreateSessionId(userId, customerName, customerEmail);
+            String sessionId = chatService.getOrCreateSessionId(customerName, customerEmail);
 
             Map<String, Object> response = new HashMap<>();
             response.put("sessionId", sessionId);
@@ -58,7 +55,7 @@ public class ChatController {
             User currentUser = getCurrentUser();
             Integer userId = currentUser != null ? currentUser.getUserId() : null;
 
-            ChatMessageDTO message = chatService.sendMessage(sessionId, content, MessageSenderType.CUSTOMER, userId);
+            ChatMessageDTO message = chatService.sendMessage(sessionId, content, userId);
             return ResponseEntity.ok(message);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));

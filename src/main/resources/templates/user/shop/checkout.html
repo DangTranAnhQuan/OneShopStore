@@ -92,8 +92,8 @@
     <div class="axil-checkout-area axil-section-gap">
         <div class="container">
             <form id="checkout-form" th:action="@{/place-order}" method="post">
-                <input type="hidden" name="calculated_shipping_fee" id="calculated_shipping_fee" value="0">
-                <input type="hidden" name="shipping_method_name" id="shipping_method_name" value="">
+                <input type="hidden" name="shippingFee" id="calculated_shipping_fee" value="0">
+                <input type="hidden" name="shippingMethod" id="shipping_method_name" value="">
                 <input type="hidden" name="shipping_option_id" id="shipping_option_id" value="">
 
                 <div class="row">
@@ -110,7 +110,7 @@
                             <div th:if="${addresses != null and !addresses.isEmpty()}">
                                 <div th:each="address, iter : ${addresses}" class="custom-address-option">
                                     <div class="address-main-content">
-                                        <input type="radio" name="shipping_address"
+                                        <input type="radio" name="addressId"
                                                th:id="${'address' + iter.index}"
                                                th:value="${address.addressId}"
                                                th:checked="${iter.index == 0}"
@@ -139,7 +139,7 @@
                             </div>
                             <div class="form-group mt-4">
                                 <label>Ghi chú đơn hàng (tùy chọn)</label>
-                                <textarea name="notes" rows="2" placeholder="Ghi chú về đơn hàng của bạn..."></textarea>
+                                <textarea name="note" rows="2" placeholder="Ghi chú về đơn hàng của bạn..."></textarea>
                             </div>
                         </div>
                     </div>
@@ -186,14 +186,14 @@
                             <div class="order-payment-method">
                                 <div class="single-payment">
                                     <div class="input-group">
-                                        <input type="radio" id="pmCOD" name="payment_method" value="COD" checked>
+                                        <input type="radio" id="pmCOD" name="paymentMethod" value="COD" checked>
                                         <label for="pmCOD">Thanh toán khi nhận hàng (COD)</label>
                                     </div>
                                     <p>Thanh toán bằng tiền mặt khi nhận hàng.</p>
                                 </div>
                                 <div class="single-payment">
                                     <div class="input-group">
-                                        <input type="radio" id="pmVietQR" name="payment_method" value="VN_PAY">
+                                        <input type="radio" id="pmVietQR" name="paymentMethod" value="VN_PAY">
                                         <label for="pmVietQR">Chuyển khoản VietQR</label>
                                     </div>
                                     <p>Tự động tạo mã QR cho đơn hàng của bạn.</p>
@@ -221,7 +221,7 @@
     <script th:inline="javascript">
         document.addEventListener('DOMContentLoaded', function() {
             // Lấy các element cần thiết
-            const addressRadios = document.querySelectorAll('input[name="shipping_address"]');
+            const addressRadios = document.querySelectorAll('input[name="addressId"]');
             const shippingFeeElement = document.getElementById('shipping-fee-amount');
             const totalAmountElement = document.getElementById('total-amount');
             const shippingMethodsLoading = document.getElementById('shipping-methods-loading');
@@ -391,7 +391,7 @@
                 });
             });
 
-            const initiallyChecked = document.querySelector('input[name="shipping_address"]:checked');
+            const initiallyChecked = document.querySelector('input[name="addressId"]:checked');
             if (initiallyChecked) {
                  const initialLabel = document.querySelector(`label[for="${initiallyChecked.id}"]`);
                  const initialProvince = initialLabel ? initialLabel.getAttribute('data-province') : null;

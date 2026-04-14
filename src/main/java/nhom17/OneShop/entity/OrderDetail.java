@@ -25,9 +25,6 @@ public class OrderDetail {
     @Column(name = "Quantity")
     private Integer quantity;
 
-    @Transient
-    private BigDecimal lineTotal;
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "OrderId", nullable = false)
     private Order order;
@@ -56,23 +53,20 @@ public class OrderDetail {
         this.order = order;
     }
 
-    void detachFromOrder() {
-        this.order = null;
-    }
 
     public void updateQuantity(int quantity) {
         if (quantity < 1) {
             throw new IllegalArgumentException("Số lượng phải lớn hơn hoặc bằng 1");
         }
         this.quantity = quantity;
-        recalculateLineTotal();
     }
 
+    @Transient
     public BigDecimal getLineTotal() {
-        if (lineTotal == null) {
-            recalculateLineTotal();
+        if (unitPrice == null || quantity == null) {
+            return BigDecimal.ZERO;
         }
-        return lineTotal;
+        return unitPrice.multiply(BigDecimal.valueOf(quantity));
     }
 
     private void setUnitPriceInternal(BigDecimal unitPrice) {
@@ -80,13 +74,5 @@ public class OrderDetail {
             throw new IllegalArgumentException("Đơn giá phải lớn hơn hoặc bằng 0");
         }
         this.unitPrice = unitPrice;
-    }
-
-    private void recalculateLineTotal() {
-        if (unitPrice == null || quantity == null) {
-            this.lineTotal = BigDecimal.ZERO;
-            return;
-        }
-        this.lineTotal = unitPrice.multiply(BigDecimal.valueOf(quantity));
     }
 }
