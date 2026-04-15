@@ -11,7 +11,10 @@ import nhom17.OneShop.repository.OrderStatusHistoryRepository;
 import nhom17.OneShop.repository.RatingRepository;
 import nhom17.OneShop.request.OrderUpdateRequest;
 import nhom17.OneShop.request.OrderRequest;
+import nhom17.OneShop.dto.adapter.IPaymentWebhookAdapter;
 import nhom17.OneShop.service.CartService;
+import nhom17.OneShop.service.AddressService;
+import nhom17.OneShop.service.InventoryService;
 import nhom17.OneShop.service.OrderService;
 import nhom17.OneShop.specification.OrderSpecification;
 import nhom17.OneShop.entity.enums.DiscountType;
@@ -63,13 +66,16 @@ public class OrderServiceImpl implements OrderService {
     MembershipTierRepository membershipTierRepository;
 
     @Autowired
-    private InventoryRepository inventoryRepository;
+    private VoucherRepository voucherRepository;
+
+    @Autowired
+    private AddressService addressService;
+
+    @Autowired
+    private InventoryService inventoryService;
 
     @Autowired
     private UserRepository userRepository;
-
-    @Autowired
-    private VoucherRepository voucherRepository;
 
     @Autowired
     private HttpSession httpSession;
@@ -85,68 +91,6 @@ public class OrderServiceImpl implements OrderService {
                 OrderSpecification.filterOrders(keyword, status, paymentMethod, paymentStatus, shippingMethod),
                 pageable
         );
-    }
-
-    @Override
-    @Transactional
-    public Order createAndSaveOrderForCheckout(User currentUser, Address shippingAddress, List<CartItem> cartItems, OrderRequest request) {
-        if (currentUser == null || currentUser.getUserId() == null) {
-            throw new IllegalStateException("Người dùng chưa đăng nhập.");
-        }
-        if (shippingAddress == null || shippingAddress.getAddressId() == null) {
-            throw new IllegalArgumentException("Địa chỉ giao hàng không hợp lệ.");
-        }
-        if (cartItems == null || cartItems.isEmpty()) {
-            throw new IllegalStateException("Giỏ hàng đang trống.");
-        }
-
-        BigDecimal shippingFee = Optional.ofNullable(request.getShippingFee()).orElse(BigDecimal.ZERO);
-        if (shippingFee.compareTo(BigDecimal.ZERO) < 0) {
-            throw new IllegalArgumentException("Phí vận chuyển không hợp lệ.");
-        }
-
-        PaymentMethod selectedPaymentMethod = PaymentMethod.fromValue(request.getPaymentMethod());
-        ShippingMethod selectedShippingMethod = ShippingMethod.fromValue(request.getShippingMethod());
-        Voucher voucher = resolveVoucherForCheckout(request.getAppliedCouponCode(), cartItems);
-
-        Order order = Order.builder()
-                .user(currentUser)
-                .address(shippingAddress)
-                .receiverName(shippingAddress.getReceiverName())
-                .receiverPhone(shippingAddress.getPhoneNumber())
-                .receiverAddress(buildReceiverAddress(shippingAddress))
-                .shippingMethod(selectedShippingMethod)
-                .paymentMethod(selectedPaymentMethod)
-                .shippingFee(shippingFee)
-                .voucher(voucher)
-                .note(request.getNote())
-                .build();
-
-        for (CartItem item : cartItems) {
-            if (item == null || item.getProduct() == null || item.getQuantity() == null) {
-                continue;
-            }
-            if (item.getQuantity() <= 0) {
-                continue;
-            }
-            Product product = item.getProduct();
-            BigDecimal unitPrice = Optional.ofNullable(product.getPrice())
-                    .orElseThrow(() -> new IllegalStateException("Giá sản phẩm không hợp lệ."));
-            order.addDetail(new OrderDetail(product, product.getName(), unitPrice, item.getQuantity()));
-        }
-
-        if (order.getOrderDetails().isEmpty()) {
-            throw new IllegalStateException("Giỏ hàng không có sản phẩm hợp lệ để tạo đơn.");
-        }
-
-        if (voucher != null) {
-            BigDecimal baseAmount = order.getSubtotal();
-            BigDecimal discountAmount = calculateVoucherDiscount(voucher, baseAmount);
-            BigDecimal payableAmount = baseAmount.subtract(discountAmount).add(shippingFee).max(BigDecimal.ZERO);
-            order.applyPayableAmount(payableAmount);
-        }
-
-        return orderRepository.save(order);
     }
 
     @Override
@@ -194,29 +138,174 @@ public class OrderServiceImpl implements OrderService {
         return result;
     }
 
+    @Override
+    public BigDecimal calculateMembershipDiscount(User user, BigDecimal subtotal) {
+        if (user == null || user.getEmail() == null || subtotal == null || subtotal.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+
+        Optional<User> userWithTierOpt = userRepository.findByEmailWithMembership(user.getEmail());
+        if (userWithTierOpt.isEmpty() || userWithTierOpt.get().getMembershipTier() == null) {
+            return BigDecimal.ZERO;
+        }
+
+        BigDecimal percent = userWithTierOpt.get().getMembershipTier().getDiscountPercentage();
+        if (percent == null || percent.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+
+        return subtotal.multiply(percent.divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP));
+    }
+
+    @Override
+    public Voucher resolveApplicableVoucher(String couponCode, User user, BigDecimal baseAmount) {
+        if (couponCode == null || couponCode.isBlank()) {
+            return null;
+        }
+
+        Voucher voucher = voucherRepository.findByVoucherCodeAndStatus(couponCode, VoucherStatus.ACTIVE)
+                .orElseThrow(() -> new IllegalStateException("Không tìm thấy mã khuyến mãi '" + couponCode + "'."));
+
+        LocalDateTime now = LocalDateTime.now();
+        boolean isValidTime = voucher.getStartsAt().isBefore(now) && voucher.getEndsAt().isAfter(now);
+        boolean isEligibleAmount = voucher.getMinimumOrderAmount() == null
+                || baseAmount.compareTo(voucher.getMinimumOrderAmount()) >= 0;
+        if (!isValidTime || !isEligibleAmount) {
+            throw new IllegalStateException("Mã khuyến mãi '" + couponCode + "' không hợp lệ hoặc không đủ điều kiện.");
+        }
+
+        List<OrderStatus> invalidOrderStatesForUsageCount = List.of(OrderStatus.CANCELED, OrderStatus.PENDING);
+
+        Integer totalLimit = voucher.getTotalUsageLimit();
+        if (totalLimit != null && totalLimit > 0) {
+            long totalUses = orderRepository.countByVoucher_VoucherCodeAndOrderStatusNotIn(voucher.getVoucherCode(), invalidOrderStatesForUsageCount);
+            if (totalUses >= totalLimit) {
+                throw new IllegalStateException("Mã khuyến mãi '" + voucher.getVoucherCode() + "' đã hết lượt sử dụng.");
+            }
+        }
+
+        Integer userLimit = voucher.getPerUserLimit();
+        if (userLimit != null && userLimit > 0 && user != null) {
+            long userUses = orderRepository.countByUserAndVoucher_VoucherCodeAndOrderStatusNotIn(user, voucher.getVoucherCode(), invalidOrderStatesForUsageCount);
+            if (userUses >= userLimit) {
+                throw new IllegalStateException("Bạn đã hết lượt sử dụng mã khuyến mãi '" + voucher.getVoucherCode() + "'.");
+            }
+        }
+
+        return voucher;
+    }
+
+    @Override
+    public BigDecimal calculateCouponDiscount(Voucher voucher, BigDecimal baseAmount) {
+        if (voucher == null || baseAmount == null || baseAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+
+        BigDecimal discount;
+        if (DiscountType.PERCENTAGE.equals(voucher.getDiscountType())) {
+            discount = baseAmount.multiply(voucher.getValue().divide(new BigDecimal("100"), 4, RoundingMode.HALF_UP));
+            if (voucher.getMaxDiscountAmount() != null && discount.compareTo(voucher.getMaxDiscountAmount()) > 0) {
+                discount = voucher.getMaxDiscountAmount();
+            }
+        } else {
+            discount = voucher.getValue();
+        }
+
+        return discount.min(baseAmount).max(BigDecimal.ZERO);
+    }
+
+    @Override
+    @Transactional
+    public Order createAndSaveOrderForCheckout(User user,
+                                               Address shippingAddress,
+                                               List<CartItem> cartItems,
+                                               OrderRequest request) {
+        if (user == null) {
+            throw new IllegalArgumentException("Người dùng không hợp lệ.");
+        }
+        if (shippingAddress == null) {
+            throw new IllegalArgumentException("Địa chỉ giao hàng không hợp lệ.");
+        }
+        if (cartItems == null || cartItems.isEmpty()) {
+            throw new IllegalStateException("Giỏ hàng đang trống.");
+        }
+
+        BigDecimal subtotal = cartItems.stream()
+                .map(CartItem::getLineTotal)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal membershipDiscount = calculateMembershipDiscount(user, subtotal);
+        BigDecimal priceAfterMembership = subtotal.subtract(membershipDiscount).max(BigDecimal.ZERO);
+
+        BigDecimal shippingFee = request.getShippingFee() == null ? BigDecimal.ZERO : request.getShippingFee();
+        ShippingMethod shippingMethod = ShippingMethod.fromValue(request.getShippingMethod());
+        PaymentMethod paymentMethod = PaymentMethod.fromValue(request.getPaymentMethod());
+
+        Voucher appliedVoucher = resolveApplicableVoucher(request.getAppliedCouponCode(), user, priceAfterMembership);
+        BigDecimal couponDiscount = calculateCouponDiscount(appliedVoucher, priceAfterMembership);
+        BigDecimal finalTotal = priceAfterMembership.subtract(couponDiscount).add(shippingFee).max(BigDecimal.ZERO);
+
+        String fullAddress = addressService.formatFullAddress(shippingAddress);
+
+        Order order = Order.builder()
+                .user(user)
+                .address(shippingAddress)
+                .receiverName(shippingAddress.getReceiverName())
+                .receiverPhone(shippingAddress.getPhoneNumber())
+                .receiverAddress(fullAddress)
+                .shippingMethod(shippingMethod)
+                .paymentMethod(paymentMethod)
+                .shippingFee(shippingFee)
+                .voucher(appliedVoucher)
+                .note(request.getNote())
+                .build();
+
+        for (CartItem cartItem : cartItems) {
+            Product product = cartItem.getProduct();
+            int orderedQuantity = cartItem.getQuantity();
+            OrderDetail detail = new OrderDetail(product, product.getName(), product.getPrice(), orderedQuantity);
+            order.addDetail(detail);
+        }
+
+        order.applyPayableAmount(finalTotal);
+        return orderRepository.save(order);
+    }
+
 
 
     @Override
     @Transactional
     public void update(Long orderId, OrderUpdateRequest request) {
-        Order order = findById(orderId);
+        OrderStatus newStatus = request.getOrderStatus();
+        boolean cancelingOrder = OrderStatus.CANCELED.equals(newStatus);
+
+        Order order = cancelingOrder
+                ? orderRepository.findByIdWithDetails(orderId)
+                    .orElseThrow(() -> new NotFoundException("Không tìm thấy đơn hàng #" + orderId))
+                : findById(orderId);
         if (order == null) {
             throw new NotFoundException("Không tìm thấy đơn hàng #" + orderId);
         }
 
         OrderStatus oldStatus = order.getOrderStatus();
-        OrderStatus newStatus = request.getOrderStatus();
         User currentUser = getCurrentUser();
 
         if (newStatus != null && !Objects.equals(oldStatus, newStatus)) {
             if (!OrderStatus.PENDING.equals(oldStatus)) {
                 throw new IllegalStateException("Chỉ có thể cập nhật trạng thái đơn khi đơn đang ở trạng thái 'Đang xử lý'.");
             }
-            if (!OrderStatus.CONFIRMED.equals(newStatus)) {
-                throw new IllegalStateException("Admin chỉ được chuyển đơn từ 'Đang xử lý' sang 'Đã xác nhận'.");
+            if (!OrderStatus.CONFIRMED.equals(newStatus) && !OrderStatus.CANCELED.equals(newStatus)) {
+                throw new IllegalStateException("Admin chỉ được chuyển đơn từ 'Đang xử lý' sang 'Đã xác nhận' hoặc 'Đã hủy'.");
             }
-            order.changeStatusWithHistory(newStatus, currentUser);
+            if (OrderStatus.CANCELED.equals(newStatus)) {
+                order.cancelByAdmin(currentUser);
+            } else {
+                order.changeStatusWithHistory(newStatus, currentUser);
+            }
             updateLoyaltyPoints(order, oldStatus, newStatus);
+            if (OrderStatus.CANCELED.equals(newStatus)) {
+                inventoryService.restockOrderItems(order);
+            }
         }
 
         order.changePaymentStatus(request.getPaymentStatus());
@@ -226,15 +315,12 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional
     public void cancelOrder(Long orderId, User currentUser) {
-        // 1. Tìm đơn hàng và kiểm tra tồn tại
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy đơn hàng #" + orderId));
 
         Order orderWithDetails = orderRepository.findByIdWithDetails(orderId).orElse(order);
-        Map<Integer, Inventory> inventoryByProduct = loadInventoriesForOrder(orderWithDetails);
-        restockInventoriesForOrder(orderWithDetails, inventoryByProduct);
         orderWithDetails.cancelByCustomer(currentUser);
-        inventoryRepository.saveAll(inventoryByProduct.values());
+        inventoryService.restockOrderItems(orderWithDetails);
         orderRepository.save(orderWithDetails);
     }
 
@@ -368,84 +454,6 @@ public class OrderServiceImpl implements OrderService {
         return userRepository.findByEmail(username).orElseThrow();
     }
 
-    private Map<Integer, Inventory> loadInventoriesForOrder(Order order) {
-        Map<Integer, Inventory> inventoryByProduct = new HashMap<>();
-        for (OrderDetail detail : order.getOrderDetails()) {
-            Integer productId = detail.getProduct().getProductId();
-            Inventory inventory = inventoryRepository.findById(productId)
-                    .orElseGet(() -> new Inventory(detail.getProduct(), 0, null));
-            inventoryByProduct.put(productId, inventory);
-        }
-        return inventoryByProduct;
-    }
-
-    private void restockInventoriesForOrder(Order order, Map<Integer, Inventory> inventoryByProduct) {
-        for (OrderDetail detail : order.getOrderDetails()) {
-            if (detail == null || detail.getProduct() == null || detail.getProduct().getProductId() == null) {
-                continue;
-            }
-            int quantity = detail.getQuantity() == null ? 0 : detail.getQuantity();
-            if (quantity <= 0) {
-                continue;
-            }
-            Inventory inventory = inventoryByProduct.get(detail.getProduct().getProductId());
-            if (inventory != null) {
-                inventory.increase(quantity);
-            }
-        }
-    }
-
-    private Voucher resolveVoucherForCheckout(String couponCode, List<CartItem> cartItems) {
-        if (couponCode == null || couponCode.isBlank()) {
-            return null;
-        }
-
-        Voucher voucher = voucherRepository.findByVoucherCodeAndStatus(couponCode, VoucherStatus.ACTIVE)
-                .orElseThrow(() -> new IllegalStateException("Mã giảm giá không hợp lệ hoặc đã hết hiệu lực."));
-
-        LocalDateTime now = LocalDateTime.now();
-        if (voucher.getStartsAt() != null && voucher.getStartsAt().isAfter(now)) {
-            throw new IllegalStateException("Mã giảm giá chưa đến thời gian áp dụng.");
-        }
-        if (voucher.getEndsAt() != null && voucher.getEndsAt().isBefore(now)) {
-            throw new IllegalStateException("Mã giảm giá đã hết hạn.");
-        }
-
-        BigDecimal baseAmount = cartItems.stream()
-                .filter(Objects::nonNull)
-                .map(CartItem::getLineTotal)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        if (voucher.getMinimumOrderAmount() != null && baseAmount.compareTo(voucher.getMinimumOrderAmount()) < 0) {
-            throw new IllegalStateException("Đơn hàng chưa đạt điều kiện tối thiểu để áp dụng mã giảm giá.");
-        }
-        return voucher;
-    }
-
-    private BigDecimal calculateVoucherDiscount(Voucher voucher, BigDecimal baseAmount) {
-        BigDecimal discountAmount;
-        if (DiscountType.PERCENTAGE.equals(voucher.getDiscountType())) {
-            discountAmount = baseAmount.multiply(voucher.getValue().divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP));
-            if (voucher.getMaxDiscountAmount() != null && discountAmount.compareTo(voucher.getMaxDiscountAmount()) > 0) {
-                discountAmount = voucher.getMaxDiscountAmount();
-            }
-        } else {
-            discountAmount = voucher.getValue();
-        }
-        return discountAmount.min(baseAmount).max(BigDecimal.ZERO);
-    }
-
-    private String buildReceiverAddress(Address shippingAddress) {
-        return java.util.stream.Stream.of(
-                        shippingAddress.getStreetAddress(),
-                        shippingAddress.getWard(),
-                        shippingAddress.getDistrict(),
-                        shippingAddress.getProvince())
-                .filter(Objects::nonNull)
-                .map(String::trim)
-                .filter(part -> !part.isEmpty())
-                .collect(Collectors.joining(", "));
-    }
-
     @Override
     public boolean hasCompletedPurchase(Integer userId, Integer productId) {
         return orderRepository.hasCompletedPurchase(userId, productId);
@@ -482,10 +490,8 @@ public class OrderServiceImpl implements OrderService {
 
         try {
             Order orderWithDetails = orderRepository.findByIdWithDetails(orderId).orElse(order);
-            Map<Integer, Inventory> inventoryByProduct = loadInventoriesForOrder(orderWithDetails);
-            restockInventoriesForOrder(orderWithDetails, inventoryByProduct);
             orderWithDetails.cancelPendingOnline(currentUser);
-            inventoryRepository.saveAll(inventoryByProduct.values());
+            inventoryService.restockOrderItems(orderWithDetails);
             orderRepository.save(orderWithDetails);
             System.out.println("cancelOrderIfPendingOnline: Đã hủy thành công đơn hàng #" + orderId);
 
